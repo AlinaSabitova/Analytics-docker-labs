@@ -92,8 +92,6 @@ chmod +x start_grafana.sh
 
 <img width="800" height="500" alt="image" src="/lab1/images/Снимок%20экрана%202026-02-10%20210215%20—%20копия.png" />
 
-<img width="800" height="500" alt="image" src="/lab1/images/Снимок%20экрана%202026-02-10%20210301%20—%20копия.png" />
-
 Изучим раздел Data Sources:
 
 <img width="800" height="500" alt="image" src="/lab1/images/Снимок%20экрана%202026-02-10%20210301%20—%20копия.png" />
