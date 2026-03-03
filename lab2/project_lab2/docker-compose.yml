@@ -1,0 +1,48 @@
+services:
+
+  # 1. ETL-загрузчик (init-контейнер)
+  loader:
+    build:
+      context: ./app
+    container_name: hr_loader
+    command: python loader.py
+    env_file: .env
+    volumes:
+      - ./data:/app/data                          # bind mount для данных
+    networks:
+      - backend-network
+
+  # 2. Streamlit Dashboard
+  dashboard:
+    build:
+      context: ./app
+    container_name: hr_dashboard
+    env_file: .env
+    depends_on:
+      loader:
+        condition: service_completed_successfully  # ждём загрузки данных
+    ports:
+      - "8501:8501"                                # порт Streamlit
+    volumes:
+      - ./data:/app/data                           # доступ к БД
+    networks:
+      - backend-network
+
+  # 3. SQLite Web Viewer
+  sqlite-web:
+    image: coleifer/sqlite-web:latest
+    container_name: hr_sqlite_web
+    ports:
+      - "8080:8080"                                # работает на 8080 порту
+    volumes:
+      - ./data:/data
+    environment:
+      - SQLITE_DATABASE=hr.db                      # имя вашей БД
+    restart: unless-stopped
+    networks:
+      - backend-network
+
+# Изолированная сеть
+networks:
+  backend-network:
+    driver: bridge
