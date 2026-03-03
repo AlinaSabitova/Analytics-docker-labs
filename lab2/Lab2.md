@@ -161,6 +161,8 @@ CSV_PATH=/app/data/hr_data.csv
 
 Откроем в браузере дашборд:
 
+<img width="1224" height="730" alt="image" src="https://github.com/user-attachments/assets/59e983be-0133-46d6-9cb4-7c0194e0de26" />
+
 <img width="1170" height="557" alt="image" src="https://github.com/user-attachments/assets/37709031-1bb1-4563-a7df-8d8a4c5a3722" />
 
 <img width="1179" height="580" alt="image" src="https://github.com/user-attachments/assets/e37c3122-c370-4124-9e85-bb646ea9b173" />
