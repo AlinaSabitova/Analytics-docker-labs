@@ -1,0 +1,11 @@
+venv
+.git
+__pycache__
+*.pyc
+data
+*.sqlite
+*.sqlite3
+.env
+docker-compose.yml
+generate_data.py
+hr_data.csv
