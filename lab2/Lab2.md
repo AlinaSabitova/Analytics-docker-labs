@@ -14,6 +14,8 @@
 
 ## Структура проекта
 
+<img width="438" height="244" alt="image" src="https://github.com/user-attachments/assets/cab82a4c-1070-42bc-a965-f9bfa39b5da8" />
+
 ## Описание компонентов
 
 ### Генератор данных
