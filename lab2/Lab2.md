@@ -127,16 +127,44 @@ CSV_PATH=/app/data/hr_data.csv
 
 Откроем папку проекта в VS Code в виртуальной машине и  запустим генерацию данных:
 
+<img width="550" height="63" alt="image" src="https://github.com/user-attachments/assets/0e1b687e-b29b-4d1f-9b39-ad7e5d1d1c08" />
+
 Видим, что скрипт отработал корректно, и csv файл отобразился в папке data:
+
+<img width="1217" height="578" alt="image" src="https://github.com/user-attachments/assets/b48bdb03-61e3-46f3-bb83-402cb5b373dd" />
 
 Запустим все сервисы:
 
+<img width="815" height="606" alt="image" src="https://github.com/user-attachments/assets/40501514-85c0-4406-99c9-4964bb436271" />
+
 Проверим статус:
+
+<img width="809" height="137" alt="image" src="https://github.com/user-attachments/assets/08584ab2-6203-4de2-9efb-8bbf6eacb303" />
 
 Посмотрим логи:
 
+<img width="819" height="497" alt="image" src="https://github.com/user-attachments/assets/54306a28-5eae-4f17-91e9-0dc0a887a23b" />
+
+Видим, что в логи вывелся результат выполнения запроса с GROUP BY
+
 Откроем в браузере веб версию Sqlite:
+
+<img width="1221" height="774" alt="image" src="https://github.com/user-attachments/assets/17566c5f-13ac-4884-b943-c70524a5eccd" />
+
+Видим, что таблица empoyees действительно была создана. 
+
+Можем выполнить SQL-запрос:
+
+<img width="903" height="667" alt="image" src="https://github.com/user-attachments/assets/7f316e7e-4c39-44eb-8155-2e4edb6c25db" />
 
 Откроем в браузере дашборд:
 
+<img width="1170" height="557" alt="image" src="https://github.com/user-attachments/assets/37709031-1bb1-4563-a7df-8d8a4c5a3722" />
 
+<img width="1179" height="580" alt="image" src="https://github.com/user-attachments/assets/e37c3122-c370-4124-9e85-bb646ea9b173" />
+
+<img width="1182" height="531" alt="image" src="https://github.com/user-attachments/assets/e9a7f718-22b0-45cc-9492-2c401d7502e4" />
+
+Остановим и удалим все контейнеры:
+
+<img width="812" height="127" alt="image" src="https://github.com/user-attachments/assets/3de9ca27-a618-4f3e-97cf-bf6c68ba93c9" />
