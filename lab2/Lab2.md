@@ -165,7 +165,7 @@ CSV_PATH=/app/data/hr_data.csv
 
 <img width="1170" height="557" alt="image" src="https://github.com/user-attachments/assets/37709031-1bb1-4563-a7df-8d8a4c5a3722" />
 
-<img width="1179" height="580" alt="image" src="https://github.com/user-attachments/assets/e37c3122-c370-4124-9e85-bb646ea9b173" />
+<img width="1198" height="604" alt="image" src="https://github.com/user-attachments/assets/543e8d63-9c4b-4e29-97eb-2b9562506e2b" />
 
 <img width="1182" height="531" alt="image" src="https://github.com/user-attachments/assets/e9a7f718-22b0-45cc-9492-2c401d7502e4" />
 
