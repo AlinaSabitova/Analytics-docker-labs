@@ -20,7 +20,7 @@
 
 ### Генератор данных
 
-Файл с генератором - [generator.py]()
+Файл с генератором - [generator.py](/lab2/project_lab2/generate_data.py)
 
 Скрипт запускается один раз на хосте перед docker compose up. Он создаёт файл hr_data.csv с 5 000 синтетическими данными о сотрудниках.
 
@@ -46,7 +46,7 @@
 
 ### Dockerfile
 
-Докерфайл - [Dockerfile]()
+Докерфайл - [Dockerfile](/lab2/project_lab2/app/Dockerfile)
 
 Что делает файл:
 1. Использует Python 3.10-slim 
@@ -76,7 +76,7 @@ hr_data.csv
 
 ### ETL-загрузчик
 
-Фвйл для загрузки данных - [loader.py]()
+Фвйл для загрузки данных - [loader.py](/lab2/project_lab2/app/loader.py)
 
 Логика работы:
 1. Ждёт появления CSV-файла с данными о сотрудниках (до 30 попыток с интервалом 2 секунды)
@@ -86,7 +86,7 @@ hr_data.csv
 
 ### Dashboard
 
-Файл, формирующий дашборд в Streamlit - [dashboard.py]()
+Файл, формирующий дашборд в Streamlit - [dashboard.py](/lab2/project_lab2/app/dashboard.py)
 
 1. Подключается к SQLite базе с данными о сотрудниках
 2. Загружает данные
@@ -99,7 +99,7 @@ hr_data.csv
 
 ### Docker Compose
 
-Файл - [docker-compose.yml]()
+Файл - [docker-compose.yml](/lab2/project_lab2/docker-compose.yml)
 
 Он объединяет 3 сервиса:
 
