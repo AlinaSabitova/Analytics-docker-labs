@@ -32,50 +32,69 @@
 
 ## Диаграмма архитектуры
 
+## 3. Архитектура решения
+
 ```mermaid
-graph TB
-    subgraph "Внешний доступ"
-        USER[Пользователь]
-        BROWSER[Браузер]
-    end
+graph TD
+    %% Определение цветов
+    classDef config fill:#f9f9f9,stroke:#333,stroke-width:1px;
+    classDef db fill:#e1f5fe,stroke:#0277bd,stroke-width:2px;
+    classDef app fill:#fff3e0,stroke:#ef6c00,stroke-width:2px;
+    classDef batch fill:#f1f8e9,stroke:#558b2f,stroke-width:2px;
+    classDef cache fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
+    classDef user fill:#ffebee,stroke:#c62828,stroke-width:2px;
 
-    subgraph "Kubernetes Cluster (Minikube)"
+    subgraph K8s_Cluster ["K8s Cluster (Minikube)"]
         
-        subgraph "Services Layer"
-            SS[superset-service<br/>NodePort:30088]
-            PS[postgres-service<br/>ClusterIP:5432]
-            RS[redis-service<br/>ClusterIP:6379]
+        subgraph Configs ["Конфигурация"]
+            SEC["superset-secrets\n(Opaque)"]
+            SA["superset-sa\n(ServiceAccount)"]
         end
 
-        subgraph "Application Layer"
-            SUP[Superset Pod<br/>my-superset:v1<br/>Port:8088]
-            INIT[Init Container<br/>superset-init<br/>- DB migrations<br/>- Admin creation]
+        subgraph DataLayer ["Слой данных"]
+            PVC["postgres-pvc\n(PersistentVolumeClaim)"]
+            DB_POD("PostgreSQL Pod\npostgres:16")
+            DB_SVC{"postgres-service\n(ClusterIP:5432)"}
         end
 
-        subgraph "Data Layer"
-            PG[PostgreSQL Pod<br/>postgres:16<br/>Port:5432<br/>DB: superset]
-            RD[Redis Pod<br/>redis:7-alpine<br/>Port:6379<br/>Cache & Broker]
-            PV[Persistent Volume<br/>hostPath: /tmp/postgres-data<br/>Size: 3Gi]
+        subgraph CacheLayer ["Слой кэширования"]
+            CACHE_POD("Redis Pod\nredis:7-alpine")
+            CACHE_SVC{"redis-service\n(ClusterIP:6379)"}
         end
 
-        subgraph "Batch Processing"
-            GEN[Data Generator Job<br/>my-generator:v1<br/>Generates 1000+ records]
+        subgraph Analytics ["Слой аналитики"]
+            APP_POD("Superset Pod\nmy-superset:v1")
+            APP_SVC{"superset-service\n(NodePort:30088)"}
+            INIT["Init Container\nsuperset-init\n(миграции + админ)"]
         end
 
-        subgraph "Configuration"
-            SEC[Secrets<br/>superset-secrets]
-            SA[Service Account<br/>superset-sa]
+        subgraph DataLoader ["Загрузка данных"]
+            JOB("Data Generator Job\nmy-generator:v1")
         end
 
+        %% Связи
+        SEC -.-> DB_POD:::config
+        SEC -.-> APP_POD:::config
+        SA -.-> APP_POD:::app
+        PVC --- DB_POD:::db
+        DB_POD --- DB_SVC:::db
+        CACHE_POD --- CACHE_SVC:::cache
+        
+        JOB -->|"INSERT 1000+ rows"| DB_SVC:::batch
+        APP_POD -->|"SQLAlchemy\n(metadata + data)"| DB_SVC:::app
+        APP_POD -->|"Cache & Sessions"| CACHE_SVC:::app
+        APP_POD --- INIT:::app
     end
 
-    USER --> BROWSER
-    BROWSER -->|HTTP:30088| SS
-    SS -->|Forward| SUP
-    SUP -->|SQLAlchemy| PS
-    SUP -->|Cache/Redis| RS
-    PS -->|Mount| PV
-    GEN -->|Insert data| PS
+    User(("Аналитик")) -->|"http://192.168.49.2:30088\nadmin/admin"| APP_SVC:::user
+
+    %% Применение стилей
+    class SEC,SA config;
+    class PVC,DB_POD,DB_SVC db;
+    class APP_POD,APP_SVC,INIT app;
+    class CACHE_POD,CACHE_SVC cache;
+    class JOB batch;
+    class User user;
     SUP -.->|Init| INIT
     SUP -.->|Uses| SEC
     SUP -.->|Uses| SA
