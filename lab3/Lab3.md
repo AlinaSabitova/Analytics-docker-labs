@@ -89,6 +89,7 @@ graph TD
     class CACHE_POD,CACHE_SVC cache;
     class JOB batch;
     class User user;
+```
 
 # Таблица пояснения компонентов архитектуры
 
