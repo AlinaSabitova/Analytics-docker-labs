@@ -34,6 +34,8 @@
 
 ## 3. Архитектура решения
 
+## 3. Архитектура решения
+
 ```mermaid
 graph TD
     %% Определение цветов
@@ -95,8 +97,3 @@ graph TD
     class CACHE_POD,CACHE_SVC cache;
     class JOB batch;
     class User user;
-    SUP -.->|Init| INIT
-    SUP -.->|Uses| SEC
-    SUP -.->|Uses| SA
-    PG -.->|Uses| SEC
-```
