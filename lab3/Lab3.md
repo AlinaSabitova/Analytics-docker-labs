@@ -91,7 +91,7 @@ graph TD
     class User user;
 ```
 
-## Таблица пояснения компонентов архитектуры
+# Таблица пояснения компонентов архитектуры
 
 | Блок | Компонент | Краткое пояснение |
 |------|-----------|-------------------|
@@ -101,3 +101,74 @@ graph TD
 | **Analytics** | Superset | BI-платформа для визуализации данных. Использует InitContainer для миграций БД и создания администратора. |
 | **Data** | Data Generator Job | Однократный процесс, наполняющий БД тестовыми данными (1000+ записей о продажах). |
 | **User** | Аналитик | Внешний пользователь, получающий доступ к Superset через NodePort (порт 30088). |
+
+# Исходные коды файлов
+
+## Образ Apache Superset
+
+### `app/Dockerfile`
+
+Dockerfile - для сборки кастомного образа Superset. На основе официального образа apache/superset:6.0.0-dev копирует конфигурационный файл superset_config.py, устанавливает права доступа и указывает путь к нему через переменную окружения:
+
+```
+FROM apache/superset:6.0.0-dev
+ 
+USER root
+ 
+COPY superset_config.py /app/superset_config.py
+RUN chown superset:superset /app/superset_config.py
+ 
+ENV SUPERSET_CONFIG_PATH=/app/superset_config.py
+ 
+USER superset
+```
+
+### `app/superset_config.py`
+
+Конфигурационный файл Apache Superset. Определяет подключение к PostgreSQL через SQLAlchemy, настройки Redis для кэширования, секретный ключ, включение дополнительных функций:
+```
+import os
+from cachelib.redis import RedisCache
+ 
+SECRET_KEY = os.environ.get("SUPERSET_SECRET_KEY", "super-secret-key-CHANGE-THIS-9876543210abcdef")
+ 
+# Подключение к PostgreSQL
+SQLALCHEMY_DATABASE_URI = (
+    f"postgresql+psycopg2://{os.environ.get('DB_USER', 'superset')}:"
+    f"{os.environ.get('DB_PASS', 'superset123')}@"
+    f"{os.environ.get('DB_HOST', 'postgres-service')}:"
+    f"{os.environ.get('DB_PORT', '5432')}/"
+    f"{os.environ.get('DB_NAME', 'superset')}"
+)
+ 
+# Redis 
+REDIS_HOST = os.environ.get("REDIS_HOST", "redis-service")
+REDIS_PORT = int(os.environ.get("REDIS_PORT", "6379"))
+REDIS_DB = int(os.environ.get("REDIS_DB", "0"))
+REDIS_CELERY_DB = int(os.environ.get("REDIS_CELERY_DB", "1"))
+ 
+CACHE_CONFIG = {
+    "CACHE_TYPE": "RedisCache",
+    "CACHE_REDIS_HOST": REDIS_HOST,
+    "CACHE_REDIS_PORT": REDIS_PORT,
+    "CACHE_REDIS_DB": REDIS_DB,
+}
+ 
+CELERY_CONFIG = {
+    "broker_url": f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_CELERY_DB}",
+    "result_backend": f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_CELERY_DB}",
+}
+ 
+RESULTS_BACKEND = RedisCache(
+    host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB, key_prefix="superset_results"
+)
+ 
+ENABLE_PROXY_FIX = True
+FEATURE_FLAGS = {
+    "DASHBOARD_NATIVE_FILTERS": True,
+    "ALERT_REPORTS": True,
+    "EMBEDDED_DASHBOARDS": True,
+}
+ 
+SILENCE_FAB_WARNINGS = True
+```
