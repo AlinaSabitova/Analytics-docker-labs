@@ -81,39 +81,3 @@ graph TB
     SUP -.->|Uses| SA
     PG -.->|Uses| SEC
 ```
-
-## Схема взаимодействия компонентов
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant Superset
-    participant Redis
-    participant PostgreSQL
-    participant Generator
-
-    Note over Generator,PostgreSQL: 1. Инициализация данных
-    Generator->>PostgreSQL: Создание таблицы sales
-    Generator->>PostgreSQL: Вставка 1000+ записей
-    Generator-->>Generator: Job Completed
-
-    Note over User,PostgreSQL: 2. Работа с приложением
-    User->>Superset: HTTP запрос (admin/admin)
-    Superset->>PostgreSQL: Запрос метаданных
-    PostgreSQL-->>Superset: Структура датасетов
-    
-    User->>Superset: Запрос графика
-    Superset->>Redis: Проверка кэша
-    Redis-->>Superset: Cache miss
-    Superset->>PostgreSQL: Выполнение SQL
-    PostgreSQL-->>Superset: Результат
-    Superset->>Redis: Сохранение в кэш
-    Superset-->>User: Визуализация
-
-    Note over User,PostgreSQL: 3. Повторный запрос (кэш)
-    User->>Superset: Тот же график
-    Superset->>Redis: Проверка кэша
-    Redis-->>Superset: Cache hit
-    Superset-->>User: Быстрый ответ из кэша
-```
-
