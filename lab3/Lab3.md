@@ -18,14 +18,10 @@
 
 **Оркестрация:** Minikube (Driver: Docker), Kubernetes (kubectl)
 
-**База данных:** PostgreSQL 16 (образ: postgres:16), Redis 7 (образ: redis:7-alpine)
+**База данных:** PostgreSQL 16, Redis 7
 
-**Язык программирования:** Python 3.10 (в образе Superset), Python 3.12 (для генератора данных — может быть заменен на любую версию 3.8+)
+**Язык программирования:** Python 3.10
 
-**Аналитическая среда:** Apache Superset 6.0.0 (кастомный образ my-superset:v1)
+**Аналитическая среда:** Apache Superset 6.0.0 
 
-**Библиотеки:** 
-- psycopg2-binary (подключение к PostgreSQL)
-- flask, sqlalchemy (в составе Superset)
-- redis (кэширование)
-- random, datetime, time (генерация тестовых данных — встроенные)
+**Библиотеки:** psycopg2-binary, flask, sqlalchemy, redis, random, datetime, time
