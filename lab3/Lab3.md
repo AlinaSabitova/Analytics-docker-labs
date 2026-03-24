@@ -98,7 +98,7 @@ graph TD
 | **Configs** | Secret / ServiceAccount | Secret хранит пароли (PostgreSQL, Redis, Superset). ServiceAccount предоставляет права доступа для Superset. |
 | **Database** | PostgreSQL / PVC | База данных для хранения метаданных Superset и таблицы sales. |
 | **Cache** | Redis | Кэш для ускорения запросов и хранения сессий пользователей. |
-| **Analytics** | Superset | BI-платформа для визуализации данных. Использует InitContainer для миграций БД и создания администратора. |
+| **Analytics** | Superset | BI-платформа для визуализации данных. |
 | **Data** | Data Generator Job | Однократный процесс, наполняющий БД тестовыми данными (1000 записей о продажах). |
 | **User** | Аналитик | Внешний пользователь, получающий доступ к Superset. |
 
