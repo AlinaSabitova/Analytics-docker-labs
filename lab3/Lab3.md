@@ -41,7 +41,7 @@ graph TD
     subgraph K8s_Cluster ["K8s Cluster (Minikube)"]
         
         subgraph Configs ["Конфигурация"]
-            SEC["superset-secrets\n(Opaque)"]
+            SEC["superset-secret"]
             SA["superset-sa\n(ServiceAccount)"]
         end
 
