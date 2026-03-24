@@ -259,9 +259,9 @@ products = {
     "Ноутбук Dell XPS": {"category": "Электроника", "price": 120000, "weight": 8},
     "Монитор LG UltraWide": {"category": "Мониторы", "price": 45990, "weight": 6},
     "Sony WH-1000XM5": {"category": "Аудио", "price": 24990, "weight": 5},
-    "Клавиатура Logitech MX": {"category": "Аксессуары", "price": 8000, "weight": 3},   # Исправлено
-    "Мышь Razer": {"category": "Аксессуары", "price": 4800, "weight": 2},                 # Исправлено
-    "Чехол для телефона": {"category": "Аксессуары", "price": 800, "weight": 1}          # Исправлено
+    "Клавиатура Logitech MX": {"category": "Аксессуары", "price": 8000, "weight": 3},   
+    "Мышь Razer": {"category": "Аксессуары", "price": 4800, "weight": 2},                 
+    "Чехол для телефона": {"category": "Аксессуары", "price": 800, "weight": 1}       
 }
  
 # Города с весами для количества продаж
@@ -675,9 +675,7 @@ spec:
 
 Образ generator:
 
-<img width="964" height="435" alt="Снимок экрана 2026-03-22 230834" src="https://github.com/user-attachments/assets/74a861e7-0e30-4419-9fe8-7aedd61ba8ab" />
-
-Проверим, что образы создались:
+<img width="966" height="428" alt="Снимок экрана 2026-03-24 122313" src="https://github.com/user-attachments/assets/ca053dc3-a67d-40ac-bfe1-7b79aa8c83c2" />
 
 Применим манифесты Kubernets:
 
