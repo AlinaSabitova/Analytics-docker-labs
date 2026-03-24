@@ -59,7 +59,7 @@ graph TD
         subgraph Analytics ["Слой аналитики"]
             APP_POD("Superset Pod\nmy-superset:v1")
             APP_SVC{"superset-service\n(NodePort:30088)"}
-            INIT["Init Container\nsuperset-init\n(миграции + админ)"]
+            INIT["Init Container\nsuperset-init"]
         end
 
         subgraph DataLoader ["Загрузка данных"]
