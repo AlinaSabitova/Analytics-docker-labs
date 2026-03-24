@@ -721,7 +721,7 @@ Superset успешно запустился, переходим в браузе
 
 Теперь вернемся в терминал и проверим корректность работы всех подов:
 
-<img width="834" height="121" alt="Снимок экрана 2026-03-24 000649" src="https://github.com/user-attachments/assets/1666086d-b404-48c6-885e-089243503c7c" />
+<img width="951" height="124" alt="image" src="https://github.com/user-attachments/assets/72adc3ef-7d41-49d0-a618-0287e97129ab" />
 
 Посмотрим сервисы:
 
