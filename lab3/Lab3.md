@@ -525,3 +525,220 @@ spec:
           path: /tmp/postgres-data
           type: DirectoryOrCreate
 ```
+
+### `k8s/superset-deployment.yaml`
+
+Развертывание Apache Superset. Содержит init-контейнер для инициализации БД и основной контейнер с портом 8088:
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: superset
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: superset
+  template:
+    metadata:
+      labels:
+        app: superset
+    spec:
+      serviceAccountName: superset-sa
+ 
+      initContainers:
+      - name: superset-init
+        image: my-superset:v1 
+        imagePullPolicy: Never
+        envFrom:
+        - secretRef:
+            name: superset-secrets
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          echo "=== Starting Superset 6.0.0 initialization ===" &&
+          superset db upgrade &&
+          echo "=== DB upgrade completed ===" &&
+          superset fab create-admin \
+            --username admin \
+            --firstname Admin \
+            --lastname User \
+            --email admin@example.com \
+            --password admin || true &&
+          echo "=== Running superset init ===" &&
+          superset init &&
+          echo "=== Initialization completed successfully ==="
+ 
+      containers:
+      - name: superset
+        image: my-superset:v1 
+        imagePullPolicy: Never
+        envFrom:
+        - secretRef:
+            name: superset-secrets
+        ports:
+        - containerPort: 8088
+          name: http
+```
+
+### `k8s/superset-service.yaml`
+
+Сервис для доступа к Superset, открывается на порту 30088:
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: superset-service
+spec:
+  type: NodePort
+  selector:
+    app: superset
+  ports:
+  - port: 8088
+    targetPort: 8088
+    nodePort: 30088
+```
+
+### `k8s/redis-deployment.yaml`
+
+Развертывание Redis для кэширования. Запускает один под с Redis 7-alpine на порту 6379:
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+```
+
+### `k8s/redis-service.yaml`
+
+Сервис для доступа к Redis внутри кластера на порту 6379:
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+spec:
+  selector:
+    app: redis
+  ports:
+  - port: 6379
+    targetPort: 6379
+```
+
+### `k8s/generator-job.yaml`
+
+Job для генерации тестовых данных. Запускает контейнер my-generator:v1, который подключается к PostgreSQL и заполняет таблицу `sales` данными:
+```
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: data-generator
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: generator
+        image: my-generator:v1 
+        imagePullPolicy: Never
+        envFrom:
+        - secretRef:
+            name: superset-secrets
+```
+
+# Ход выполнения
+
+Запускаем Kubernets:
+
+<img width="953" height="419" alt="Снимок экрана 2026-03-22 230223" src="https://github.com/user-attachments/assets/a7350d0a-0a3f-4b62-8bf6-76ef45968a2d" />
+
+Входим в окружение minikube и собираем образы.
+
+Образ superset:
+
+<img width="962" height="390" alt="Снимок экрана 2026-03-22 230715" src="https://github.com/user-attachments/assets/523c6554-4bf2-4bdd-85b9-be9a60253a86" />
+
+Образ generator:
+
+<img width="964" height="435" alt="Снимок экрана 2026-03-22 230834" src="https://github.com/user-attachments/assets/74a861e7-0e30-4419-9fe8-7aedd61ba8ab" />
+
+Проверим, что образы создались:
+
+Применим манифесты Kubernets:
+
+<img width="570" height="192" alt="Снимок экрана 2026-03-22 231017" src="https://github.com/user-attachments/assets/62622f3a-1cac-4311-8d4d-258c9437dd60" />
+
+Проверим доступность приложения:
+
+<img width="950" height="129" alt="Снимок экрана 2026-03-24 000642" src="https://github.com/user-attachments/assets/0a92b525-3455-4544-8b38-f0ca4119a8e0" />
+
+Superset успешно запустился, переходим в браузер:
+
+<img width="1223" height="776" alt="Снимок экрана 2026-03-23 221056" src="https://github.com/user-attachments/assets/e73b5cbe-c4ec-4fac-b506-f8c6874dbb33" />
+
+Заходим под admin admin:
+
+<img width="1214" height="737" alt="Снимок экрана 2026-03-23 221117" src="https://github.com/user-attachments/assets/93aa8667-9bb9-4c17-8847-ccd4fd4b77aa" />
+
+Подключаемся к базе данных:
+
+<img width="1212" height="739" alt="Снимок экрана 2026-03-23 221236" src="https://github.com/user-attachments/assets/75e58601-1687-4dc4-8574-dbd66047f3b1" />
+
+Подключение произошло успешно:
+
+<img width="1211" height="356" alt="Снимок экрана 2026-03-23 221255" src="https://github.com/user-attachments/assets/9a0cad69-8909-4145-9960-266ba8c8af17" />
+
+Добавляем наш датасет:
+
+<img width="1215" height="733" alt="Снимок экрана 2026-03-23 221337" src="https://github.com/user-attachments/assets/42671a0e-f7c3-4450-ad87-23bb8eb7b9e7" />
+
+Далее создаем графики и размещаем их на дашборде:
+
+<img width="1209" height="682" alt="Снимок экрана 2026-03-24 000511" src="https://github.com/user-attachments/assets/18d81a7e-0693-4d56-bf0e-ba18f637f74d" />
+
+Также добавим фильтры:
+
+<img width="1193" height="685" alt="Снимок экрана 2026-03-24 000519" src="https://github.com/user-attachments/assets/20dd4880-67ee-4e7a-9b59-c34ea2452364" />
+
+Попробуем их применить:
+
+<img width="1220" height="694" alt="Снимок экрана 2026-03-24 000615" src="https://github.com/user-attachments/assets/6d6fa4ed-f2a1-4026-814b-131b3baf6dad" />
+
+Теперь вернемся в терминал и проверим корректность работы всех подов:
+
+<img width="834" height="121" alt="Снимок экрана 2026-03-24 000649" src="https://github.com/user-attachments/assets/1666086d-b404-48c6-885e-089243503c7c" />
+
+Посмотрим сервисы:
+
+<img width="759" height="110" alt="Снимок экрана 2026-03-24 000656" src="https://github.com/user-attachments/assets/16f949c4-09ce-4e4b-b0f0-728fdb942be1" />
+
+И также проверим, что база данных действительно создалась и в нее были загружены все записи:
+
+<img width="954" height="168" alt="Снимок экрана 2026-03-24 000710" src="https://github.com/user-attachments/assets/3a5d494d-0dbe-40df-be51-c784057835ec" />
+
+Видим, что в таблице 1000 записей, как и должно быть
+
+Теперь посмотрим первые 5 строк таблицы:
+
+<img width="965" height="63" alt="Снимок экрана 2026-03-24 000719" src="https://github.com/user-attachments/assets/5462c533-86a0-4e04-8e69-5309dbe48590" />
+
+<img width="989" height="502" alt="Снимок экрана 2026-03-24 000730" src="https://github.com/user-attachments/assets/bd96f610-8701-425b-b735-c611193d5fcc" />
+
+# Вывод
+
+В ходе выполнения лабораторной работы был полностью освоен процесс оркестрации контейнеров в Kubernetes. Успешно развёрнута связка из двух сервисов — Apache Superset и PostgreSQL. Отработаны механизмы управления масштабированием приложения с помощью Deployment, настроена сетевая доступность между компонентами с использованием различных типов Service. Все сервисы успешно взаимодействуют друг с другом, кластер функционирует стабильно. Поставленная цель достигнута.
