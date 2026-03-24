@@ -196,8 +196,8 @@ from datetime import datetime, timedelta
  
 # Функция для ожидания подключения к БД
 def wait_for_db():
-    max_retries = 30
-    retry_interval = 2
+    max_retries = 60
+    retry_interval = 5
     
     for i in range(max_retries):
         try:
@@ -212,7 +212,7 @@ def wait_for_db():
             print("✅ База данных доступна")
             return True
         except psycopg2.OperationalError as e:
-            print(f"⏳ Ожидание БД... ({i+1}/{30})")
+            print(f"⏳ Ожидание БД... ({i+1}/{max_retries})")
             time.sleep(retry_interval)
     
     print("❌ Не удалось подключиться к БД")
@@ -250,7 +250,7 @@ CREATE TABLE sales (
 )
 """)
  
-# Данные для генерации с обновленными ценами
+# Данные для генерации
 products = {
     "iPhone 15 Pro": {"category": "Смартфоны", "price": 89999, "weight": 30},
     "Samsung Galaxy S24": {"category": "Смартфоны", "price": 69999, "weight": 30},
@@ -259,75 +259,62 @@ products = {
     "Ноутбук Dell XPS": {"category": "Электроника", "price": 120000, "weight": 8},
     "Монитор LG UltraWide": {"category": "Мониторы", "price": 45990, "weight": 6},
     "Sony WH-1000XM5": {"category": "Аудио", "price": 24990, "weight": 5},
-    "Клавиатура Logitech MX": {"category": "Аксессуары", "price": 8000, "weight": 3},   
-    "Мышь Razer": {"category": "Аксессуары", "price": 4800, "weight": 2},                 
-    "Чехол для телефона": {"category": "Аксессуары", "price": 800, "weight": 1}       
+    "Клавиатура Logitech MX": {"category": "Аксессуары", "price": 8000, "weight": 3},
+    "Мышь Razer": {"category": "Аксессуары", "price": 4800, "weight": 2},
+    "Чехол для телефона": {"category": "Аксессуары", "price": 800, "weight": 1}
 }
  
-# Города с весами для количества продаж
+# Города с весами
 cities = {
-    "Москва": 45,           # больше всего продаж (45%)
-    "Санкт-Петербург": 30,  # поменьше (30%)
-    "Екатеринбург": 12,     # средний показатель
-    "Казань": 8,            # поменьше
-    "Новосибирск": 5        # меньше всего (5%)
+    "Москва": 45,
+    "Санкт-Петербург": 30,
+    "Екатеринбург": 12,
+    "Казань": 8,
+    "Новосибирск": 5
 }
  
-# Типы клиентов с весами для выручки
+# Типы клиентов
 customer_types = {
-    "VIP": 60,      # больше всего выручки (60%)
-    "Постоянный": 30,  # поменьше (30%)
-    "Новый": 10       # значительно меньше (10%)
+    "VIP": 60,
+    "Постоянный": 30,
+    "Новый": 10
 }
  
 payment_methods = ["Карта", "Наличные", "Онлайн"]
  
-# Функция выбора с весами
 def weighted_choice(weighted_dict):
     items = list(weighted_dict.keys())
     weights = list(weighted_dict.values())
     return random.choices(items, weights=weights)[0]
  
-# Функция для расчета количества товара (чем дороже, тем меньше количество)
 def get_quantity_by_price(price):
     if price >= 100000:
-        return random.randint(1, 3)      # очень дорогие товары - мало
+        return random.randint(1, 3)
     elif price >= 50000:
-        return random.randint(2, 8)      # дорогие товары - среднее количество
+        return random.randint(2, 8)
     elif price >= 20000:
-        return random.randint(5, 15)     # средние товары
+        return random.randint(5, 15)
     else:
-        return random.randint(10, 50)    # дешевые товары - много (увеличено для аксессуаров)
+        return random.randint(10, 50)
  
-# Генерируем 1000 записей
-print("🔄 Генерация данных с заданным распределением...")
+print("🔄 Генерация данных...")
 total_records = 1000
  
 for i in range(total_records):
-    # Выбираем продукт с учетом веса (прибыльности)
     product_name = weighted_choice({k: v["weight"] for k, v in products.items()})
     product = products[product_name]
     category = product["category"]
     base_price = product["price"]
-    
-    # Добавляем вариативность цены ±10%
     price = round(base_price * random.uniform(0.95, 1.05), 2)
-    
-    # Количество зависит от цены (чем дороже, тем меньше)
     quantity = get_quantity_by_price(price)
-    
-    # Выбираем город с весами (Москва чаще всего)
     region = weighted_choice(cities)
     
-    # Выбираем тип клиента с весами (VIP чаще для дорогих товаров)
     if price > 50000:
-        # Дорогие товары чаще покупают VIP и постоянные
         cust_weights = {"VIP": 45, "Постоянный": 35, "Новый": 20}
     else:
         cust_weights = customer_types
     customer_type = weighted_choice(cust_weights)
     
-    # Случайная дата за последние 2 года
     sale_date = (datetime.now() - timedelta(days=random.randint(0, 730))).date()
     
     cur.execute(
@@ -347,11 +334,16 @@ for i in range(total_records):
             random.choice(payment_methods)
         )
     )
+ 
 conn.commit()
+ 
+cur.execute("SELECT COUNT(*) FROM sales")
+count = cur.fetchone()[0]
+print(f"✅ Создано {count} записей")
  
 cur.close()
 conn.close()
-print("\nГенерация данных завершена!")
+print("🎉 Генерация данных завершена!")
 ```
 
 ### `k8s/secret.yaml`
@@ -389,6 +381,22 @@ metadata:
   name: superset-sa
 ```
 
+### `k8s/pvc.yaml`
+
+PersistentVolumeClaim (PVC) для PostgreSQL:
+```
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 3Gi
+```
+
 ### `k8s/postgres-deployment.yaml`
 
 Развертывание PostgreSQL. Содержит init-контейнер для исправления прав доступа, переменные окружения из секрета, PVC для хранения данных:
@@ -410,7 +418,7 @@ spec:
       serviceAccountName: superset-sa
       
       initContainers:
-      - name: fix-permissions
+      - name: init-chown
         image: busybox
         command: ['sh', '-c', 'chown -R 999:999 /var/lib/postgresql/data']
         volumeMounts:
@@ -467,63 +475,6 @@ spec:
   ports:
   - port: 5432
     targetPort: 5432
-```
-
-### `k8s/postgres-deployment-hostpath.yaml`
-
-Развертывание PostgreSQL с использованием hostPath вместо PVC. Создает один под с PostgreSQL 16, монтирует директорию /tmp/postgres-data на хосте для хранения данных, переменные окружения (пользователь, пароль, БД) подставляются из секрета:
-```
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: postgres
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: postgres
-  template:
-    metadata:
-      labels:
-        app: postgres
-    spec:
-      serviceAccountName: superset-sa
-      
-      containers:
-      - name: postgres
-        image: postgres:16
-        imagePullPolicy: IfNotPresent
-        
-        env:
-        - name: POSTGRES_USER
-          valueFrom:
-            secretKeyRef:
-              name: superset-secrets
-              key: POSTGRES_USER
-        - name: POSTGRES_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: superset-secrets
-              key: POSTGRES_PASSWORD
-        - name: POSTGRES_DB
-          valueFrom:
-            secretKeyRef:
-              name: superset-secrets
-              key: POSTGRES_DB
- 
-        ports:
-        - containerPort: 5432
-          name: postgres
- 
-        volumeMounts:
-        - mountPath: /var/lib/postgresql/data
-          name: postgres-storage
- 
-      volumes:
-      - name: postgres-storage
-        hostPath:
-          path: /tmp/postgres-data
-          type: DirectoryOrCreate
 ```
 
 ### `k8s/superset-deployment.yaml`
