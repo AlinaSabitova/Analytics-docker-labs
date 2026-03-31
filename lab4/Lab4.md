@@ -10,30 +10,7 @@
 |---------|------------------|---------------|-----------------|
 | 12 | Rocket Launch Analytics | Мониторинг и анализ космических запусков | Название миссии, статус запуска, дата старта, провайдер, изображения ракет |
 
-## Технический стек и окружение
-
-**ОС:** Ubuntu 22.04 LTS
-
-**Контейнеризация:** Docker
-
-**Оркестрация:** Minikube (Driver: Docker), Kubernetes (kubectl)
-
-**База данных:** PostgreSQL 15
-
-**Язык программирования:** Python 3.11
-
-**Backend:** FastAPI, Uvicorn
-
-**Frontend:** Streamlit
-
-**Библиотеки:** SQLAlchemy, psycopg2-binary, Pydantic, requests, pandas, plotly, python-multipart
-
-## Архитектура решения
-
-```mermaid
-# Электронный архив документов
-
-## Технический стек и окружение
+# Технический стек и окружение
 
 | Компонент | Технология | Версия |
 |-----------|------------|--------|
@@ -46,7 +23,7 @@
 | **Frontend** | Streamlit | 1.28.1 |
 | **Библиотеки** | SQLAlchemy, psycopg2-binary, Pydantic, requests, pandas, plotly | |
 
-## Архитектура решения
+# Архитектура решения
 
 ```mermaid
 graph TB
@@ -74,9 +51,3 @@ graph TB
     end
 
     User((Пользователь)) --> Streamlit
-
-    class DB_POD,DB_SVC,PVC db;
-    class BACKEND_POD1,BACKEND_POD2,BACKEND_SVC app;
-    class FRONTEND_POD,FRONTEND_SVC frontend;
-    class User user;
-```
