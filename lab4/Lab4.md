@@ -1285,14 +1285,30 @@ pillow==10.1.0
 
 # Запуск
 
-Устанавливаем миникуб:
+Запускаем миникуб:
+
+<img width="975" height="464" alt="Снимок экрана 2026-03-31 094851" src="https://github.com/user-attachments/assets/8aa7bdb3-cd02-45f7-a380-77fe42bdf9cb" />
 
 Переходим в окружение:
 
+<img width="953" height="21" alt="Снимок экрана 2026-03-31 094913" src="https://github.com/user-attachments/assets/f98e7217-daa0-4d1e-8d51-c3fc75a19735" />
+
 Собираем кастомный образ для бекэнда:
+
+<img width="967" height="427" alt="Снимок экрана 2026-03-31 094923" src="https://github.com/user-attachments/assets/161cdc5f-98b4-4f69-83e6-45c874c5e54b" />
 
 Собираем кастомный образ для фронтэнда:
 
+<img width="969" height="329" alt="Снимок экрана 2026-03-31 094947" src="https://github.com/user-attachments/assets/ab4f26a3-3352-4d17-b202-81178a0cd0f5" />
+
 Применяем манифесты Kubernets:
 
+<img width="849" height="432" alt="Снимок экрана 2026-03-31 095022" src="https://github.com/user-attachments/assets/9a2dad28-f396-4aa9-a443-c1aac970ed2e" />
+
 Запускаем приложение:
+
+<img width="966" height="123" alt="Снимок экрана 2026-03-31 095104" src="https://github.com/user-attachments/assets/4f6e5cea-8db1-4808-9112-2d7a42051d6c" />
+
+# Результат
+
+Перейдем в браузер и посмотрим на приложение
