@@ -49,43 +49,31 @@
 ## Архитектура решения
 
 ```mermaid
-graph TD
-    classDef db fill:#e1f5fe,stroke:#0277bd,stroke-width:2px;
-    classDef app fill:#fff3e0,stroke:#ef6c00,stroke-width:2px;
-    classDef frontend fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
-    classDef user fill:#ffebee,stroke:#c62828,stroke-width:2px;
-
-    subgraph K8s_Cluster ["Kubernetes Cluster (Minikube)"]
+graph TB
+    subgraph K8s["Kubernetes Cluster (Minikube)"]
         
-        subgraph DataLayer ["Слой данных"]
-            DB_POD("PostgreSQL Pod\npostgres:15-alpine")
-            DB_SVC{"postgres-service\n(ClusterIP:5432)"}
-            PVC["PVC 5Gi\n(PersistentVolume)"]
+        subgraph Data["Слой данных"]
+            PostgreSQL[("PostgreSQL\npostgres:15-alpine")]
+            PVC[("PVC 5Gi\nPersistentVolume")]
         end
 
-        subgraph BackendLayer ["Слой бэкенда"]
-            BACKEND_POD1("Backend Pod 1\nFastAPI")
-            BACKEND_POD2("Backend Pod 2\nFastAPI")
-            BACKEND_SVC{"backend-service\n(ClusterIP:8000)"}
+        subgraph Backend["Слой бэкенда"]
+            API1[("Backend Pod 1\nFastAPI")]
+            API2[("Backend Pod 2\nFastAPI")]
         end
 
-        subgraph FrontendLayer ["Слой фронтенда"]
-            FRONTEND_POD("Frontend Pod\nStreamlit")
-            FRONTEND_SVC{"frontend-service\n(NodePort:30001)"}
+        subgraph Frontend["Слой фронтенда"]
+            Streamlit[("Frontend Pod\nStreamlit")]
         end
 
-        PVC --- DB_POD:::db
-        DB_POD --- DB_SVC:::db
-        
-        BACKEND_POD1 -->|"SQLAlchemy"| DB_SVC:::app
-        BACKEND_POD2 -->|"SQLAlchemy"| DB_SVC:::app
-        BACKEND_SVC --- BACKEND_POD1
-        BACKEND_SVC --- BACKEND_POD2
-        
-        FRONTEND_POD -->|"HTTP REST API"| BACKEND_SVC:::frontend
+        PVC --> PostgreSQL
+        API1 --> PostgreSQL
+        API2 --> PostgreSQL
+        Streamlit --> API1
+        Streamlit --> API2
     end
 
-    User(("Пользователь")) -->|"http://192.168.49.2:30001"| FRONTEND_SVC:::user
+    User((Пользователь)) --> Streamlit
 
     class DB_POD,DB_SVC,PVC db;
     class BACKEND_POD1,BACKEND_POD2,BACKEND_SVC app;
