@@ -26,28 +26,64 @@
 # Архитектура решения
 
 ```mermaid
-graph TB
-    subgraph K8s["Kubernetes Cluster (Minikube)"]
+graph TD
+    %% Определение цветов
+    classDef config fill:#f9f9f9,stroke:#333,stroke-width:1px;
+    classDef db fill:#e1f5fe,stroke:#0277bd,stroke-width:2px;
+    classDef app fill:#fff3e0,stroke:#ef6c00,stroke-width:2px;
+    classDef frontend fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef user fill:#ffebee,stroke:#c62828,stroke-width:2px;
+
+    subgraph K8s_Cluster ["K8s Cluster (Minikube)"]
         
-        subgraph Data["Слой данных"]
-            PostgreSQL[("PostgreSQL\npostgres:15-alpine")]
-            PVC[("PVC 5Gi\nPersistentVolume")]
+        subgraph Configs ["Конфигурация"]
+            SEC["postgres-secret\n(пароль БД)"]
+            CM["postgres-configmap\n(настройки БД)"]
+            SA["document-archive-sa\n(ServiceAccount)"]
         end
 
-        subgraph Backend["Слой бэкенда"]
-            API1[("Backend Pod 1\nFastAPI")]
-            API2[("Backend Pod 2\nFastAPI")]
+        subgraph DataLayer ["Слой данных"]
+            PVC["postgres-pvc\n(PersistentVolumeClaim 5Gi)"]
+            DB_POD("PostgreSQL Pod\npostgres:15-alpine")
+            DB_SVC{"postgres-service\n(ClusterIP:5432)"}
         end
 
-        subgraph Frontend["Слой фронтенда"]
-            Streamlit[("Frontend Pod\nStreamlit")]
+        subgraph BackendLayer ["Слой бэкенда"]
+            BACKEND_POD1("Backend Pod 1\nFastAPI")
+            BACKEND_POD2("Backend Pod 2\nFastAPI")
+            BACKEND_SVC{"backend-service\n(ClusterIP:8000)"}
         end
 
-        PVC --> PostgreSQL
-        API1 --> PostgreSQL
-        API2 --> PostgreSQL
-        Streamlit --> API1
-        Streamlit --> API2
+        subgraph FrontendLayer ["Слой фронтенда"]
+            FRONTEND_POD("Frontend Pod\nStreamlit")
+            FRONTEND_SVC{"frontend-service\n(NodePort:30001)"}
+        end
+
+        %% Связи
+        SEC -.-> DB_POD:::config
+        SEC -.-> BACKEND_POD1:::config
+        SEC -.-> BACKEND_POD2:::config
+        CM -.-> DB_POD:::config
+        SA -.-> BACKEND_POD1:::app
+        SA -.-> BACKEND_POD2:::app
+        SA -.-> FRONTEND_POD:::frontend
+        
+        PVC --- DB_POD:::db
+        DB_POD --- DB_SVC:::db
+        
+        BACKEND_POD1 -->|"SQLAlchemy\nCRUD операции"| DB_SVC:::app
+        BACKEND_POD2 -->|"SQLAlchemy\nCRUD операции"| DB_SVC:::app
+        BACKEND_SVC --- BACKEND_POD1
+        BACKEND_SVC --- BACKEND_POD2
+        
+        FRONTEND_POD -->|"HTTP Requests\nREST API"| BACKEND_SVC:::frontend
     end
 
-    User((Пользователь)) --> Streamlit
+    User(("Пользователь")) -->|"http://192.168.49.2:30001\nПросмотр/Создание/Редактирование"| FRONTEND_SVC:::user
+
+    %% Применение стилей
+    class SEC,CM,SA config;
+    class PVC,DB_POD,DB_SVC db;
+    class BACKEND_POD1,BACKEND_POD2,BACKEND_SVC app;
+    class FRONTEND_POD,FRONTEND_SVC frontend;
+    class User user;
