@@ -1311,4 +1311,43 @@ pillow==10.1.0
 
 # Результат
 
-Перейдем в браузер и посмотрим на приложение
+Перейдем в браузер и посмотрим на приложение.
+
+Приложение имеет 4 раздела. Первый раздел содержит список документов, созданных в приложении:
+
+<img width="1212" height="736" alt="image" src="https://github.com/user-attachments/assets/f53b6a39-9218-4f67-bc73-ed938d59fdb3" />
+
+На этой странице доступен поиск по наименованию, фильтрация по типу документа, сортировка по нескольким параметрам и возможность отображать только избранные документы.
+
+Также здесь можно просмотреть содержимое документа и отредактировать его:
+
+<img width="870" height="462" alt="image" src="https://github.com/user-attachments/assets/b8f1cd0c-94b5-43cc-9804-cc529b847219" />
+
+Тут же документ можно удалить, если он больше не актуален.
+
+Второй раздел - создание документов. Доступно для варианта - с прикреплением файла и без:
+
+<img width="1206" height="646" alt="image" src="https://github.com/user-attachments/assets/9b93f9a9-cfa7-4ee7-bdda-f64dca5b4263" />
+
+В разделе "Создать документ" необходимо заполнить все поля и нажать на кнопку "Создать документ"
+
+В разделе "Загрузить файл" можно дополнительно прикрепить файл, который будет приложением:
+
+<img width="922" height="658" alt="image" src="https://github.com/user-attachments/assets/ff08bec6-c241-40fb-adc6-45dde4c8d893" />
+
+В разделе "Статистика" можно посмотреть дашборд:
+
+<img width="1203" height="690" alt="image" src="https://github.com/user-attachments/assets/09dd38d8-78df-4012-bc65-8705e6d7d887" />
+
+<img width="959" height="443" alt="image" src="https://github.com/user-attachments/assets/e6978a0c-4227-4583-bc4d-b908e3e6ceb7" />
+
+<img width="926" height="406" alt="image" src="https://github.com/user-attachments/assets/67d5af16-2d85-402d-a7ae-ad0165050222" />
+
+<img width="924" height="428" alt="image" src="https://github.com/user-attachments/assets/63d2caf1-42f9-48eb-a980-70ed5602a8e0" />
+
+В разделе журнал действий можно просмотреть историю взаимодействия с файлами и при необходимости выгрузить в csv файл:
+
+<img width="944" height="529" alt="image" src="https://github.com/user-attachments/assets/e277b97e-fb5c-4e18-a012-897fcec7c06a" />
+
+<img width="1078" height="391" alt="image" src="https://github.com/user-attachments/assets/5c2fdf4e-69d6-45d2-8ad7-6759af9b4ca6" />
+
