@@ -853,6 +853,7 @@ st.caption("🚀 Document Archive • FastAPI + Streamlit + PostgreSQL")
 | `k8s/01-postgres-secret.yaml` | Хранит пароль PostgreSQL в зашифрованном виде (base64) |
 | `k8s/02-serviceaccount.yaml` | Создает ServiceAccount `document-archive-sa`, Role и RoleBinding для управления доступом подов к Kubernetes API |
 | `k8s/03-postgres-pvc.yaml` | PVC для сохранения данных PostgreSQL при перезапусках и сбоях |
+| `k8s/04-uploads-pvc.yaml` | PVC для выделение постоянного хранилища для загруженных файловх |
 | `k8s/05-postgres-deployment.yaml` | Развертывание PostgreSQL: порт 5432, подключение PVC, переменные окружения из ConfigMap и Secret |
 | `k8s/06-postgres-service.yaml` | ClusterIP сервис для внутреннего доступа бэкенда к PostgreSQL (порт 5432) |
 | `k8s/07-backend-deployment.yaml` | Развертывание бэкенда: 2 реплики FastAPI, порт 8000, переменная DATABASE_URL |
@@ -928,3 +929,6 @@ st.caption("🚀 Document Archive • FastAPI + Streamlit + PostgreSQL")
 
 <img width="1078" height="391" alt="image" src="https://github.com/user-attachments/assets/5c2fdf4e-69d6-45d2-8ad7-6759af9b4ca6" />
 
+# Выводы
+
+В ходе работы было успешно создано и развернуто трехзвенное приложение (Frontend + Backend + PostgreSQL) в кластере Kubernetes. Освоены навыки контейнеризации приложений с помощью Docker, написания манифестов для развертывания микросервисов, настройки взаимодействия между компонентами через сервисы и ConfigMap. Изучены механизмы организации сетевой связи между фронтендом, бэкендом и базой данных, а также управление конфигурацией и состоянием приложения в Kubernetes.
