@@ -101,6 +101,8 @@ graph TD
 
 # Структура проекта
 
+<img width="669" height="437" alt="image" src="https://github.com/user-attachments/assets/3579a619-3078-48f2-a9c0-5775316a94ad" />
+
 # Исходные коды
 
 ## backend/Dockerfile
@@ -412,657 +414,451 @@ import streamlit as st
 import requests
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 from datetime import datetime, timedelta
+import time
 import json
- 
-API_URL = "http://backend:8000"
- 
-# Настройка страницы
+import io
+
 st.set_page_config(
-    page_title="Электронный архив документов",
+    page_title="Архив документов", 
+    layout="wide", 
     page_icon="📁",
-    layout="wide",
     initial_sidebar_state="expanded"
 )
- 
-# CSS для красивого оформления
+
+# Кастомный CSS
 st.markdown("""
 <style>
-    .main-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 2rem;
-        border-radius: 1rem;
-        color: white;
-        margin-bottom: 2rem;
-        text-align: center;
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    * {
+        font-family: 'Inter', sans-serif;
     }
-    .stat-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 1.5rem;
-        border-radius: 1rem;
-        text-align: center;
-        color: white;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-    .document-card {
+    
+    .stApp {
         background: white;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        border-left: 4px solid #667eea;
-        margin-bottom: 0.5rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        cursor: pointer;
-        transition: all 0.3s;
     }
-    .document-card:hover {
-        transform: translateX(5px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    }
-    .history-item {
-        padding: 0.75rem;
-        border-left: 3px solid #667eea;
-        margin-bottom: 0.5rem;
-        background: #f8f9fa;
-        border-radius: 0.25rem;
-    }
-    .activity-item {
-        padding: 0.75rem;
-        border-bottom: 1px solid #e0e0e0;
-        margin-bottom: 0.5rem;
-    }
-    .badge {
-        display: inline-block;
-        padding: 0.25rem 0.5rem;
-        border-radius: 0.25rem;
-        font-size: 0.75rem;
-        font-weight: bold;
-    }
-    .badge-active { background: #d4edda; color: #155724; }
-    .badge-draft { background: #fff3cd; color: #856404; }
-    .badge-archived { background: #e2e3e5; color: #383d41; }
-    .stButton>button {
+    
+    .stButton > button {
+        background: #f0f2f6;
+        color: #1f2937;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 8px 20px;
+        font-weight: 500;
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
         width: 100%;
-        border-radius: 0.5rem;
+        min-width: 100px;
+    }
+    
+    .stButton > button:hover {
+        background: #e5e7eb;
+        border-color: #9ca3af;
+        transform: translateY(-1px);
+    }
+    
+    div[data-testid="stContainer"] {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 16px;
+        margin: 10px 0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        transition: all 0.2s ease;
+        border: 1px solid #e9ecef;
+    }
+    
+    div[data-testid="stContainer"]:hover {
+        transform: translateX(3px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        border-color: #cbd5e1;
+    }
+    
+    h1 {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 800;
+        font-size: 2.2rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    h2, h3 {
+        color: #2d3748;
+        font-weight: 600;
+    }
+    
+    [data-testid="stSidebar"] {
+        background: #f8f9fa;
+        border-right: 1px solid #e9ecef;
+    }
+    
+    .stTextInput > div > div > input, .stSelectbox > div > div {
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        transition: all 0.2s;
+        background: white;
+        font-size: 0.9rem;
+    }
+    
+    code {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.8rem;
     }
 </style>
 """, unsafe_allow_html=True)
- 
+
 # Инициализация session state
-if 'selected_document' not in st.session_state:
-    st.session_state.selected_document = None
-if 'view' not in st.session_state:
-    st.session_state.view = "list"
-if 'show_history' not in st.session_state:
-    st.session_state.show_history = False
-if 'create_mode' not in st.session_state:
-    st.session_state.create_mode = None
- 
-# Маппинг для русских названий
-TYPE_NAMES_RU = {
-    "contract": "Договор",
-    "invoice": "Счет", 
-    "report": "Отчет",
-    "policy": "Положение",
-    "act": "Акт",
-    "order": "Приказ",
-    "other": "Прочее"
-}
- 
-STATUS_NAMES_RU = {
-    "draft": "Черновик",
-    "active": "Действующий",
-    "archived": "В архиве",
-    "deleted": "Удален"
-}
- 
-TYPE_NAMES_EN = {v: k for k, v in TYPE_NAMES_RU.items()}
-STATUS_NAMES_EN = {v: k for k, v in STATUS_NAMES_RU.items()}
- 
-# Заголовок
-st.markdown("""
-<div class="main-header">
-    <h1>📁 Электронный архив документов</h1>
-    <p>Система управления документами с историей версий</p>
-</div>
-""", unsafe_allow_html=True)
- 
-# Боковая панель
-with st.sidebar:
-    st.image("https://img.icons8.com/color/96/000000/folder-invoices.png", width=80)
-    st.markdown("### 📋 Навигация")
-    
-    menu = {
-        "list": "📄 Список документов",
-        "create": "➕ Создать документ",
-        "stats": "📊 Статистика",
-        "activity": "🕒 Журнал действий"
-    }
-    
-    selected_menu = st.radio("", list(menu.values()))
-    st.session_state.view = [k for k, v in menu.items() if v == selected_menu][0]
-    
-    st.markdown("---")
-    
-    # Фильтры для списка документов
-    if st.session_state.view == "list":
-        st.markdown("### 🔍 Фильтры")
-        search_term = st.text_input("Поиск", placeholder="Название, описание...")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            doc_type_ru = st.selectbox("Тип", ["Все"] + list(TYPE_NAMES_RU.values()))
-            doc_type = TYPE_NAMES_EN.get(doc_type_ru) if doc_type_ru != "Все" else None
-        with col2:
-            status_ru = st.selectbox("Статус", ["Все"] + list(STATUS_NAMES_RU.values()))
-            status = STATUS_NAMES_EN.get(status_ru) if status_ru != "Все" else None
-        
-        favorite_only = st.checkbox("⭐ Только избранные")
-        
-        st.markdown("---")
-        
-        # Быстрая статистика
-        try:
-            stats_response = requests.get(f"{API_URL}/stats/")
-            if stats_response.status_code == 200:
-                stats = stats_response.json()
-                st.metric("📄 Всего", stats['total_documents'])
-                st.metric("💾 Размер", f"{stats['total_size_mb']:.1f} MB")
-        except:
-            pass
- 
-# Основной контент
-# ============================================
- 
-# 1. СПИСОК ДОКУМЕНТОВ
-# ============================================
-if st.session_state.view == "list":
-    st.markdown("### 📄 Список документов")
-    
-    params = {"skip": 0, "limit": 100}
-    if search_term:
-        params["search"] = search_term
-    if doc_type:
-        params["doc_type"] = doc_type
-    if status:
-        params["status"] = status
-    if favorite_only:
-        params["favorite_only"] = True
-    
-    try:
-        response = requests.get(f"{API_URL}/documents/", params=params)
-        if response.status_code == 200:
-            documents = response.json()
-            
-            if documents:
-                # Отображаем карточки документов
-                for doc in documents:
-                    with st.container():
-                        col1, col2, col3, col4, col5 = st.columns([3, 1, 0.8, 0.8, 0.8])
-                        
-                        with col1:
-                            status_class = "active" if doc['status'] == "active" else "draft" if doc['status'] == "draft" else "archived"
-                            st.markdown(f"""
-                            <div class="document-card">
-                                <b>📄 {doc['title']}</b><br>
-                                <small>📁 {TYPE_NAMES_RU.get(doc['document_type'], doc['document_type'])} | 
-                                🔖 <span class="badge badge-{status_class}">{STATUS_NAMES_RU.get(doc['status'], doc['status'])}</span> | 
-                                📅 {doc['created_at'][:10]}</small>
-                                {'<br><small>⭐ Избранное</small>' if doc['is_favorite'] else ''}
-                            </div>
-                            """, unsafe_allow_html=True)
-                        
-                        with col2:
-                            if st.button("👁️", key=f"view_{doc['id']}", help="Просмотр"):
-                                st.session_state.selected_document = doc['id']
-                                st.session_state.show_history = False
-                                st.rerun()
-                        
-                        with col3:
-                            if st.button("✏️", key=f"edit_{doc['id']}", help="Редактировать"):
-                                st.session_state.selected_document = doc['id']
-                                st.session_state.view = "create"
-                                st.session_state.create_mode = "edit"
-                                st.rerun()
-                        
-                        with col4:
-                            if st.button("📜", key=f"history_{doc['id']}", help="История"):
-                                st.session_state.selected_document = doc['id']
-                                st.session_state.show_history = True
-                                st.rerun()
-                        
-                        with col5:
-                            if st.button("🗑️", key=f"delete_{doc['id']}", help="Удалить"):
-                                if st.warning(f"Удалить документ {doc['title']}?"):
-                                    del_response = requests.delete(f"{API_URL}/documents/{doc['id']}")
-                                    if del_response.status_code == 200:
-                                        st.success("Документ удален")
-                                        st.rerun()
-                
-                # Модальное окно просмотра документа
-                if st.session_state.selected_document and not st.session_state.show_history:
-                    doc = next((d for d in documents if d['id'] == st.session_state.selected_document), None)
-                    if doc:
-                        st.markdown("---")
-                        st.markdown("### 📄 Детали документа")
-                        
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.write("**Название:**", doc['title'])
-                            st.write("**Файл:**", doc['filename'])
-                            st.write("**Тип:**", TYPE_NAMES_RU.get(doc['document_type'], doc['document_type']))
-                            st.write("**Статус:**", STATUS_NAMES_RU.get(doc['status'], doc['status']))
-                            st.write("**Версия:**", doc['version'])
-                        with col2:
-                            st.write("**Создан:**", doc['created_at'][:19])
-                            st.write("**Обновлен:**", doc['updated_at'][:19] if doc['updated_at'] else "—")
-                            st.write("**Размер:**", f"{doc['file_size'] / 1024:.2f} KB" if doc['file_size'] > 0 else "—")
-                            st.write("**Теги:**", doc['tags'] or "—")
-                            st.write("**Описание:**", doc['description'] or "—")
-                        
-                        if st.button("Закрыть", key="close_view"):
-                            st.session_state.selected_document = None
-                            st.rerun()
-                
-                # История документа
-                if st.session_state.selected_document and st.session_state.show_history:
-                    st.markdown("---")
-                    st.markdown("### 📜 История изменений")
-                    
-                    history_response = requests.get(f"{API_URL}/documents/{st.session_state.selected_document}/history")
-                    if history_response.status_code == 200:
-                        history = history_response.json()
-                        if history:
-                            for h in history:
-                                action_icon = {
-                                    "create": "➕ Создание",
-                                    "update": "✏️ Изменение",
-                                    "delete": "🗑️ Удаление"
-                                }.get(h['action'], h['action'])
-                                
-                                st.markdown(f"""
-                                <div class="history-item">
-                                    <b>{action_icon}</b>
-                                    <span style="float: right;">🕒 {h['changed_at'][:19]}</span><br>
-                                    <small>👤 {h['changed_by']}</small>
-                                    <br><small>📝 {h['new_value']}</small>
-                                </div>
-                                """, unsafe_allow_html=True)
-                        else:
-                            st.info("История изменений пуста")
-                    
-                    if st.button("Закрыть историю"):
-                        st.session_state.selected_document = None
-                        st.session_state.show_history = False
-                        st.rerun()
-            else:
-                st.info("📭 Документы не найдены")
-        else:
-            st.error("❌ Не удалось загрузить документы")
-    except Exception as e:
-        st.error(f"❌ Ошибка: {e}")
- 
-# 2. СОЗДАНИЕ/РЕДАКТИРОВАНИЕ ДОКУМЕНТА
-# ============================================
-elif st.session_state.view == "create":
-    if st.session_state.create_mode == "edit":
-        st.markdown("### ✏️ Редактирование документа")
-        
-        # Загружаем документ для редактирования
-        try:
-            response = requests.get(f"{API_URL}/documents/{st.session_state.selected_document}")
-            if response.status_code == 200:
-                doc = response.json()
-                
-                with st.form("edit_form"):
-                    col1, col2 = st.columns(2)
-                    
-                    with col1:
-                        title = st.text_input("Название *", value=doc['title'])
-                        filename = st.text_input("Имя файла *", value=doc['filename'])
-                        doc_type_ru = st.selectbox("Тип", list(TYPE_NAMES_RU.values()), 
-                                                   index=list(TYPE_NAMES_RU.values()).index(TYPE_NAMES_RU.get(doc['document_type'], "Прочее")))
-                    
-                    with col2:
-                        status_ru = st.selectbox("Статус", list(STATUS_NAMES_RU.values()),
-                                                index=list(STATUS_NAMES_RU.values()).index(STATUS_NAMES_RU.get(doc['status'], "Черновик")))
-                        tags = st.text_input("Теги", value=doc['tags'] or "")
-                        is_favorite = st.checkbox("⭐ В избранное", value=doc['is_favorite'])
-                    
-                    description = st.text_area("Описание", value=doc['description'] or "")
-                    uploaded_file = st.file_uploader("📎 Загрузить новый файл (оставьте пустым, чтобы не менять)", 
-                                                     type=['pdf', 'docx', 'txt', 'jpg', 'png', 'xlsx'])
-                    
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        submitted = st.form_submit_button("💾 Сохранить изменения")
-                    with col2:
-                        cancelled = st.form_submit_button("❌ Отмена")
-                    
-                    if submitted:
-                        data = {
-                            "title": title,
-                            "filename": filename,
-                            "document_type": TYPE_NAMES_EN[doc_type_ru],
-                            "status": STATUS_NAMES_EN[status_ru],
-                            "tags": tags,
-                            "description": description,
-                            "is_favorite": str(is_favorite).lower()
-                        }
-                        
-                        files = None
-                        if uploaded_file:
-                            files = {"file": uploaded_file}
-                        
-                        try:
-                            response = requests.put(f"{API_URL}/documents/{st.session_state.selected_document}", 
-                                                   data=data, files=files)
-                            if response.status_code == 200:
-                                st.success("✅ Документ обновлен!")
-                                st.session_state.view = "list"
-                                st.session_state.create_mode = None
-                                st.session_state.selected_document = None
-                                st.rerun()
-                            else:
-                                st.error(f"❌ Ошибка: {response.text}")
-                        except Exception as e:
-                            st.error(f"❌ Ошибка: {e}")
-                    
-                    if cancelled:
-                        st.session_state.view = "list"
-                        st.session_state.create_mode = None
-                        st.session_state.selected_document = None
-                        st.rerun()
-        except Exception as e:
-            st.error(f"❌ Ошибка загрузки документа: {e}")
-    
-    else:
-        st.markdown("### ➕ Создание нового документа")
-        
-        # Выбор способа создания
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("📝 Создать без файла", use_container_width=True):
-                st.session_state.create_mode = "no_file"
-        with col2:
-            if st.button("📎 Создать с файлом", use_container_width=True):
-                st.session_state.create_mode = "with_file"
-        
-        st.markdown("---")
-        
-        if st.session_state.create_mode == "no_file":
-            st.info("📝 Создание документа без прикрепленного файла")
-            with st.form("create_form_no_file"):
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    title = st.text_input("Название *")
-                    filename = st.text_input("Имя файла *")
-                
-                with col2:
-                    doc_type_ru = st.selectbox("Тип", list(TYPE_NAMES_RU.values()))
-                    status_ru = st.selectbox("Статус", list(STATUS_NAMES_RU.values()))
-                
-                description = st.text_area("Описание")
-                tags = st.text_input("Теги")
-                is_favorite = st.checkbox("⭐ В избранное")
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    submitted = st.form_submit_button("✅ Создать")
-                with col2:
-                    cancelled = st.form_submit_button("❌ Отмена")
-                
-                if submitted:
-                    if not title or not filename:
-                        st.error("⚠️ Заполните название и имя файла")
-                    else:
-                        data = {
-                            "title": title,
-                            "filename": filename,
-                            "document_type": TYPE_NAMES_EN[doc_type_ru],
-                            "status": STATUS_NAMES_EN[status_ru],
-                            "description": description,
-                            "tags": tags,
-                            "is_favorite": str(is_favorite).lower()
-                        }
-                        
-                        try:
-                            response = requests.post(f"{API_URL}/documents/", data=data)
-                            if response.status_code == 200:
-                                st.success("✅ Документ создан!")
-                                st.balloons()
-                                st.session_state.view = "list"
-                                st.session_state.create_mode = None
-                                st.rerun()
-                            else:
-                                st.error(f"❌ Ошибка: {response.text}")
-                        except Exception as e:
-                            st.error(f"❌ Ошибка: {e}")
-                
-                if cancelled:
-                    st.session_state.create_mode = None
-                    st.rerun()
-        
-        elif st.session_state.create_mode == "with_file":
-            st.info("📎 Создание документа с прикрепленным файлом")
-            with st.form("create_form_with_file"):
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    title = st.text_input("Название *")
-                    filename = st.text_input("Имя файла *")
-                
-                with col2:
-                    doc_type_ru = st.selectbox("Тип", list(TYPE_NAMES_RU.values()))
-                    status_ru = st.selectbox("Статус", list(STATUS_NAMES_RU.values()))
-                
-                description = st.text_area("Описание")
-                tags = st.text_input("Теги")
-                is_favorite = st.checkbox("⭐ В избранное")
-                uploaded_file = st.file_uploader("📎 Выберите файл", type=['pdf', 'docx', 'txt', 'jpg', 'png', 'xlsx'])
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    submitted = st.form_submit_button("✅ Создать")
-                with col2:
-                    cancelled = st.form_submit_button("❌ Отмена")
-                
-                if submitted:
-                    if not title or not filename:
-                        st.error("⚠️ Заполните название и имя файла")
-                    elif not uploaded_file:
-                        st.error("⚠️ Выберите файл для загрузки")
-                    else:
-                        data = {
-                            "title": title,
-                            "filename": filename,
-                            "document_type": TYPE_NAMES_EN[doc_type_ru],
-                            "status": STATUS_NAMES_EN[status_ru],
-                            "description": description,
-                            "tags": tags,
-                            "is_favorite": str(is_favorite).lower()
-                        }
-                        files = {"file": uploaded_file}
-                        
-                        try:
-                            response = requests.post(f"{API_URL}/documents/", data=data, files=files)
-                            if response.status_code == 200:
-                                st.success("✅ Документ создан с файлом!")
-                                st.balloons()
-                                st.session_state.view = "list"
-                                st.session_state.create_mode = None
-                                st.rerun()
-                            else:
-                                st.error(f"❌ Ошибка: {response.text}")
-                        except Exception as e:
-                            st.error(f"❌ Ошибка: {e}")
-                
-                if cancelled:
-                    st.session_state.create_mode = None
-                    st.rerun()
- 
-# 3. СТАТИСТИКА
-# ============================================
-elif st.session_state.view == "stats":
-    st.markdown("### 📊 Статистика и аналитика")
-    
-    try:
-        response = requests.get(f"{API_URL}/stats/")
-        if response.status_code == 200:
-            stats = response.json()
-            
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.markdown(f"""
-                <div class="stat-card">
-                    <h2>📄</h2>
-                    <h2>{stats['total_documents']}</h2>
-                    <p>Всего документов</p>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            with col2:
-                st.markdown(f"""
-                <div class="stat-card">
-                    <h2>💾</h2>
-                    <h2>{stats['total_size_mb']:.1f} MB</h2>
-                    <p>Общий размер</p>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            with col3:
-                st.markdown(f"""
-                <div class="stat-card">
-                    <h2>🔢</h2>
-                    <h2>{stats['avg_version']}</h2>
-                    <p>Средняя версия</p>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            with col4:
-                    active_count = stats['by_status'].get('active', 0)
-                    st.markdown(f"""
-                    <div class="stat-card">
-                        <h2>✅</h2>
-                        <h2>{active_count}</h2>
-                        <p>Действующих</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.markdown("#### 📊 Распределение по типам")
-                type_data = {TYPE_NAMES_RU.get(k, k): v for k, v in stats['by_type'].items() if v > 0}
-                if type_data:
-                    fig = px.pie(values=list(type_data.values()), names=list(type_data.keys()), 
-                                title="Документы по типам",
-                                color_discrete_sequence=px.colors.qualitative.Set3)
-                    fig.update_layout(height=400)
-                    st.plotly_chart(fig, use_container_width=True)
-            
-            with col2:
-                st.markdown("#### 📊 Статусы документов")
-                status_data = {STATUS_NAMES_RU.get(k, k): v for k, v in stats['by_status'].items() if v > 0 and k != 'deleted'}
-                if status_data:
-                    fig = px.bar(x=list(status_data.keys()), y=list(status_data.values()), 
-                                title="Документы по статусам",
-                                color=list(status_data.keys()),
-                                color_discrete_sequence=px.colors.qualitative.Pastel)
-                    fig.update_layout(height=400)
-                    st.plotly_chart(fig, use_container_width=True)
-            
-            st.markdown("---")
-            st.markdown("#### 📋 Детальная статистика")
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                st.markdown("**По типам:**")
-                for doc_type, count in stats['by_type'].items():
-                    if count > 0:
-                        st.write(f"- {TYPE_NAMES_RU.get(doc_type, doc_type)}: {count}")
-            
-            with col2:
-                st.markdown("**По статусам:**")
-                for status, count in stats['by_status'].items():
-                    if count > 0 and status != 'deleted':
-                        st.write(f"- {STATUS_NAMES_RU.get(status, status)}: {count}")
-        else:
-            st.error("❌ Не удалось загрузить статистику")
-    except Exception as e:
-        st.error(f"❌ Ошибка: {e}")
- 
-# 4. ЖУРНАЛ ДЕЙСТВИЙ
-# ============================================
-elif st.session_state.view == "activity":
-    st.markdown("### 🕒 Журнал действий")
-    
-    try:
-        response = requests.get(f"{API_URL}/stats/")
-        if response.status_code == 200:
-            stats = response.json()
-            recent_activity = stats.get('recent_activity', [])
-            
-            if recent_activity:
-                for activity in recent_activity:
-                    action_icon = {
-                        "create": "➕ Создание документа",
-                        "update": "✏️ Редактирование",
-                        "delete": "🗑️ Удаление"
-                    }.get(activity['action'], "📌 Действие")
-                    
-                    time = datetime.fromisoformat(activity['changed_at']).strftime('%d.%m.%Y %H:%M:%S')
-                    
-                    st.markdown(f"""
-                    <div class="activity-item">
-                        <b>{action_icon}</b>
-                        <span style="float: right;">🕒 {time}</span><br>
-                        <small>Документ #{activity['document_id']}</small><br>
-                        <small>👤 {activity['changed_by']}</small>
-                    </div>
-                    """, unsafe_allow_html=True)
-            else:
-                st.info("📭 Журнал действий пуст")
-        else:
-            st.error("❌ Не удалось загрузить журнал")
-    except Exception as e:
-        st.error(f"❌ Ошибка: {e}")
- 
-# Футер
+if "refresh_trigger" not in st.session_state:
+    st.session_state.refresh_trigger = 0
+if "selected_doc" not in st.session_state:
+    st.session_state.selected_doc = None
+
+st.title("📁 Архив документов")
+st.markdown("**✨ Система управления документами**")
 st.markdown("---")
-st.markdown("""
-<div style="text-align: center; color: gray; padding: 1rem;">
-    📁 Электронный архив документов | Система управления документами
-</div>
-""", unsafe_allow_html=True)
-```
 
-## frontend/requirements.txt
+BASE_URL = "http://backend:8000"
 
-Список Python зависимостей: streamlit, requests, pandas, plotly
+def api_get(url):
+    try:
+        r = requests.get(url, timeout=10)
+        if r.status_code == 200:
+            return r.json()
+        else:
+            st.error(f"Ошибка {r.status_code}")
+            return None
+    except Exception as e:
+        st.error(f"Не удалось подключиться к backend: {e}")
+        st.stop()
 
-```
-streamlit==1.39.0
-requests==2.32.3
-pandas==2.2.3
-plotly==5.24.1
+def api_post(url, json=None, data=None, files=None):
+    try:
+        return requests.post(url, json=json, data=data, files=files, timeout=12)
+    except Exception as e:
+        st.error(f"Ошибка соединения: {e}")
+        return None
+
+def force_refresh():
+    st.session_state.refresh_trigger += 1
+    st.rerun()
+
+def clear_filters():
+    keys_to_clear = ["search_input", "filter_type", "sort_by", "filter_fav"]
+    for key in keys_to_clear:
+        if key in st.session_state:
+            del st.session_state[key]
+    force_refresh()
+
+menu = st.sidebar.radio("Навигация", 
+    ["📋 Документы", "➕ Создать / Загрузить", "📊 Статистика", "📜 Журнал действий"])
+
+if menu == "📋 Документы":
+    st.subheader("📋 Список документов")
+
+    col1, col2, col3 = st.columns([3, 2, 2])
+    with col1:
+        search_name = st.text_input("🔍 Поиск по наименованию", placeholder="Часть названия...", key="search_input")
+    with col2:
+        filter_type = st.selectbox("Тип документа", 
+            ["Все", "Отчёт", "Акт", "Договор", "Счёт", "Сертификат", "Другое"], key="filter_type")
+    with col3:
+        sort_by = st.selectbox("Сортировка", 
+            ["Дата создания (новые сверху)", "Название (А→Я)", "Тип документа"], key="sort_by")
+
+    col_fav, col_btn1, col_btn2 = st.columns([2, 1, 1])
+    with col_fav:
+        filter_favorite = st.checkbox("⭐ Показывать только избранные документы", key="filter_fav")
+    with col_btn1:
+        if st.button("🔄 Обновить", use_container_width=True):
+            force_refresh()
+    with col_btn2:
+        if st.button("🧹 Очистить фильтры", use_container_width=True):
+            clear_filters()
+
+    docs = api_get(f"{BASE_URL}/documents")
+    
+    if docs:
+        df = pd.DataFrame(docs)
+        df["created_at"] = pd.to_datetime(df["created_at"])
+
+        if search_name:
+            df = df[df["name"].str.contains(search_name, case=False, na=False)]
+        if filter_type != "Все":
+            type_map = {"Отчёт": "Report", "Акт": "Act", "Договор": "Contract", 
+                       "Счёт": "Invoice", "Сертификат": "Certificate", "Другое": "Other"}
+            df = df[df["doc_type"] == type_map.get(filter_type, filter_type)]
+        if filter_favorite:
+            df = df[df["is_favorite"] == True]
+
+        if sort_by == "Дата создания (новые сверху)":
+            df = df.sort_values("created_at", ascending=False)
+        elif sort_by == "Название (А→Я)":
+            df = df.sort_values("name")
+        elif sort_by == "Тип документа":
+            df = df.sort_values("doc_type")
+
+        st.caption(f"**Найдено документов: {len(df)}**")
+
+        for _, row in df.iterrows():
+            with st.container():
+                col_name, col_actions = st.columns([3, 1])
+                with col_name:
+                    fav = "⭐ " if row["is_favorite"] else ""
+                    st.markdown(f"**{fav}{row['name']}**")
+                    st.caption(f"**Тип:** {row['doc_type']} | **Тег:** `{row['tag']}` | **Ответственный:** {row['responsible']}")
+                    st.caption(f"📅 {row['created_at'].strftime('%d.%m.%Y %H:%M')}")
+                
+                with col_actions:
+                    col_btn_view, col_btn_del = st.columns(2, gap="small")
+                    with col_btn_view:
+                        if st.button("👁️ Просмотр", key=f"view_{row['id']}", use_container_width=True):
+                            st.session_state.selected_doc = row.to_dict()
+                            force_refresh()
+                    
+                    with col_btn_del:
+                        if st.button("🗑️ Удалить", key=f"del_{row['id']}", use_container_width=True):
+                            try:
+                                response = requests.delete(
+                                    f"{BASE_URL}/documents/{row['id']}",
+                                    timeout=10
+                                )
+                                
+                                if response.status_code == 200:
+                                    if st.session_state.selected_doc and st.session_state.selected_doc.get('id') == row['id']:
+                                        st.session_state.selected_doc = None
+                                    force_refresh()
+                                else:
+                                    error_detail = "Неизвестная ошибка"
+                                    try:
+                                        error_detail = response.json().get("detail", response.text)
+                                    except:
+                                        error_detail = response.text
+                                    st.error(f"❌ Ошибка {response.status_code}: {error_detail}")
+                            except Exception as e:
+                                st.error(f"❌ Ошибка соединения: {str(e)}")
+                
+                st.divider()
+
+        if st.session_state.selected_doc:
+            doc = st.session_state.selected_doc
+            with st.expander(f"📄 Редактирование: {doc['name']}", expanded=True):
+                with st.form("edit_form"):
+                    name = st.text_input("Название", doc["name"])
+                    doc_type = st.selectbox("Тип документа", 
+                        ["Отчёт", "Акт", "Договор", "Счёт", "Сертификат", "Другое"],
+                        index=["Report", "Act", "Contract", "Invoice", "Certificate", "Other"].index(doc["doc_type"]) if doc["doc_type"] in ["Report", "Act", "Contract", "Invoice", "Certificate", "Other"] else 0)
+                    tag = st.text_input("Тег", doc["tag"])
+                    favorite = st.checkbox("Избранное", doc.get("is_favorite", False))
+                    responsible = st.text_input("Ответственный", doc.get("responsible", "Не указан"))
+                    
+                    # Отображение информации о загруженном файле
+                    if doc.get("file_path"):
+                        st.info(f"📎 **Загружен файл:** {doc.get('original_filename', 'Файл')}")
+                    else:
+                        st.info("📄 **Файл не загружен**")
+
+                    col1_btn, col2_btn = st.columns(2)
+                    with col1_btn:
+                        if st.form_submit_button("💾 Сохранить изменения", type="primary"):
+                            type_map_reverse = {"Отчёт":"Report", "Акт":"Act", "Договор":"Contract",
+                                              "Счёт":"Invoice", "Сертификат":"Certificate", "Другое":"Other"}
+                            resp = requests.put(f"{BASE_URL}/documents/{doc['id']}", json={
+                                "name": name,
+                                "doc_type": type_map_reverse.get(doc_type, doc_type),
+                                "tag": tag,
+                                "is_favorite": favorite,
+                                "responsible": responsible
+                            })
+                            if resp.status_code == 200:
+                                st.success("✅ Изменения сохранены!")
+                                st.session_state.selected_doc = None
+                                force_refresh()
+                            else:
+                                st.error(f"❌ Ошибка {resp.status_code}")
+                    
+                    with col2_btn:
+                        if st.form_submit_button("✕ Закрыть"):
+                            st.session_state.selected_doc = None
+                            force_refresh()
+
+elif menu == "➕ Создать / Загрузить":
+    st.subheader("➕ Создать документ")
+    
+    with st.form("create_upload_form", clear_on_submit=True):
+        name = st.text_input("Название документа *")
+        doc_type = st.selectbox("Тип документа", ["Отчёт", "Акт", "Договор", "Счёт", "Сертификат", "Другое"])
+        tag = st.text_input("Тег *")
+        favorite = st.checkbox("⭐ Добавить в избранное")
+        responsible = st.text_input("Ответственный", "Не указан")
+        
+        st.divider()
+        st.markdown("### 📎 Приложение")
+        uploaded = st.file_uploader("Выберите файл (необязательно)", help="Можно оставить пустым")
+        
+        if st.form_submit_button("✨ Создать документ", type="primary"):
+            if name and tag:
+                type_map = {"Отчёт":"Report", "Акт":"Act", "Договор":"Contract",
+                           "Счёт":"Invoice", "Сертификат":"Certificate", "Другое":"Other"}
+                
+                if uploaded:
+                    # Загружаем с файлом
+                    files = {"file": (uploaded.name, uploaded.getvalue(), uploaded.type)}
+                    data = {"name": name, "doc_type": type_map[doc_type], "tag": tag,
+                            "is_favorite": str(favorite).lower(), "responsible": responsible}
+                    resp = api_post(f"{BASE_URL}/documents/upload", data=data, files=files)
+                    if resp and resp.status_code == 200:
+                        success_msg = st.success(f"✅ Документ «{name}» успешно создан с файлом «{uploaded.name}»!")
+                        time.sleep(1)
+                        success_msg.empty()
+                        force_refresh()
+                    else:
+                        st.error("❌ Ошибка при создании документа")
+                else:
+                    # Создаём без файла
+                    resp = api_post(f"{BASE_URL}/documents/create", json={
+                        "name": name, "doc_type": type_map[doc_type], "tag": tag,
+                        "is_favorite": favorite, "responsible": responsible
+                    })
+                    if resp and resp.status_code == 200:
+                        success_msg = st.success(f"✅ Документ «{name}» успешно создан!")
+                        time.sleep(1)
+                        success_msg.empty()
+                        force_refresh()
+                    else:
+                        st.error("❌ Ошибка при создании документа")
+            else:
+                st.warning("⚠️ Заполните название и тег")
+
+elif menu == "📊 Статистика":
+    st.subheader("📊 Статистика архива")
+    stats = api_get(f"{BASE_URL}/stats")
+    logs = api_get(f"{BASE_URL}/logs")
+    docs = api_get(f"{BASE_URL}/documents")
+    
+    if stats:
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Всего документов", stats.get("total_documents", 0))
+        col2.metric("В избранном", stats.get("favorites", 0))
+        last = logs[0]["timestamp"][:16] if logs else "—"
+        col3.metric("Последнее действие", last)
+
+        if stats.get("by_type"):
+            st.subheader("📊 Распределение документов по типам")
+            df_type = pd.DataFrame(list(stats["by_type"].items()), columns=["Тип", "Количество"])
+            type_translate = {"Report": "Отчёт", "Act": "Акт", "Contract": "Договор", 
+                             "Invoice": "Счёт", "Certificate": "Сертификат", "Other": "Другое"}
+            df_type["Тип"] = df_type["Тип"].map(type_translate).fillna(df_type["Тип"])
+            
+            col_chart1, col_chart2 = st.columns(2)
+            with col_chart1:
+                fig_pie = px.pie(df_type, names="Тип", values="Количество", 
+                                title="Распределение по типам",
+                                color_discrete_sequence=px.colors.qualitative.Set3)
+                st.plotly_chart(fig_pie, use_container_width=True)
+            
+            with col_chart2:
+                fig_bar = px.bar(df_type, x="Тип", y="Количество", 
+                               title="Количество по типам",
+                               color="Количество", 
+                               color_continuous_scale='Viridis',
+                               text="Количество")
+                fig_bar.update_traces(textposition='outside')
+                st.plotly_chart(fig_bar, use_container_width=True)
+        
+        if docs and len(docs) > 0:
+            st.subheader("🏷️ Популярность тегов")
+            df_docs = pd.DataFrame(docs)
+            if "tag" in df_docs.columns and df_docs["tag"].notna().any():
+                tag_counts = df_docs["tag"].value_counts().head(15).reset_index()
+                tag_counts.columns = ["Тег", "Количество"]
+                
+                fig_tags = px.bar(tag_counts, x="Количество", y="Тег", 
+                                orientation='h',
+                                title="Топ-15 популярных тегов",
+                                color="Количество",
+                                color_continuous_scale='Plasma',
+                                text="Количество")
+                fig_tags.update_traces(textposition='outside')
+                fig_tags.update_layout(height=500)
+                st.plotly_chart(fig_tags, use_container_width=True)
+        
+        if logs and len(logs) > 0:
+            st.subheader("📈 Активность по дням")
+            df_logs = pd.DataFrame(logs)
+            df_logs["date"] = pd.to_datetime(df_logs["timestamp"]).dt.date
+            daily_activity = df_logs.groupby("date").size().reset_index(name="count")
+            fig_activity = px.line(daily_activity, x="date", y="count", 
+                                  title="Количество действий по дням",
+                                  markers=True,
+                                  labels={"date": "Дата", "count": "Количество действий"})
+            fig_activity.update_traces(line=dict(width=3, color="#667eea"), 
+                                      marker=dict(size=8, color="#764ba2"))
+            st.plotly_chart(fig_activity, use_container_width=True)
+        
+        if docs and len(docs) > 0:
+            st.subheader("👥 Активность ответственных лиц")
+            df_docs = pd.DataFrame(docs)
+            if "responsible" in df_docs.columns:
+                responsible_counts = df_docs["responsible"].value_counts().head(10).reset_index()
+                responsible_counts.columns = ["Ответственный", "Количество"]
+                
+                fig_resp = px.bar(responsible_counts, x="Ответственный", y="Количество",
+                                 title="Топ-10 ответственных лиц",
+                                 color="Количество",
+                                 color_continuous_scale='Viridis',
+                                 text="Количество")
+                fig_resp.update_traces(textposition='outside')
+                fig_resp.update_layout(xaxis_tickangle=-45)
+                st.plotly_chart(fig_resp, use_container_width=True)
+
+elif menu == "📜 Журнал действий":
+    st.subheader("📜 Журнал действий")
+    
+    logs = api_get(f"{BASE_URL}/logs")
+    if logs:
+        for log in logs:
+            if "(только метаданные)" in log.get("details", ""):
+                log["details"] = "Создан документ"
+            elif "Метаданные документа обновлены" in log.get("details", ""):
+                log["details"] = "Изменён документ"
+        df = pd.DataFrame(logs)
+        df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.strftime("%d.%m.%Y %H:%M:%S")
+        st.dataframe(df[["timestamp", "action", "details"]], use_container_width=True, hide_index=True)
+        
+        csv_buffer = io.StringIO()
+        df[["timestamp", "action", "details"]].to_csv(csv_buffer, index=False, encoding='utf-8-sig')
+        csv_data = csv_buffer.getvalue()
+        
+        st.download_button(
+            label="📥 Скачать журнал в CSV",
+            data=csv_data,
+            file_name=f"journal_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+            mime="text/csv",
+            use_container_width=False
+        )
+
+st.caption("🚀 Document Archive • FastAPI + Streamlit + PostgreSQL")
 ```
 
 ## Манифесты Kubernets
 
 | Файл | Описание |
 |------|----------|
-| `k8s/namespace.yaml` | Создает пространство имен `document-archive` для изоляции всех ресурсов приложения |
-| `k8s/serviceaccount.yaml` | Создает ServiceAccount `document-archive-sa`, Role и RoleBinding для управления доступом подов к Kubernetes API |
-| `k8s/postgres-configmap.yaml` | Хранит переменные окружения для PostgreSQL: POSTGRES_DB, POSTGRES_USER |
-| `k8s/postgres-secret.yaml` | Хранит пароль PostgreSQL в зашифрованном виде (base64) |
-| `k8s/postgres-pvc.yaml` | PVC для сохранения данных PostgreSQL при перезапусках и сбоях |
-| `k8s/postgres-deployment.yaml` | Развертывание PostgreSQL: порт 5432, подключение PVC, переменные окружения из ConfigMap и Secret |
-| `k8s/postgres-service.yaml` | ClusterIP сервис для внутреннего доступа бэкенда к PostgreSQL (порт 5432) |
-| `k8s/backend-deployment.yaml` | Развертывание бэкенда: 2 реплики FastAPI, порт 8000, переменная DATABASE_URL |
-| `k8s/backend-service.yaml` | ClusterIP сервис для доступа фронтенда к бэкенду (порт 8000) |
-| `k8s/frontend-deployment.yaml` | Развертывание фронтенда: Streamlit, порт 8501, переменная API_URL |
-| `k8s/frontend-service.yaml` | NodePort сервис для внешнего доступа пользователей к приложению (порт 30001) |
+| `k8s/00-namespace.yaml` | Создает пространство имен `document-archive` для изоляции всех ресурсов приложения |
+| `k8s/01-postgres-secret.yaml` | Хранит пароль PostgreSQL в зашифрованном виде (base64) |
+| `k8s/02-serviceaccount.yaml` | Создает ServiceAccount `document-archive-sa`, Role и RoleBinding для управления доступом подов к Kubernetes API |
+| `k8s/03-postgres-pvc.yaml` | PVC для сохранения данных PostgreSQL при перезапусках и сбоях |
+| `k8s/05-postgres-deployment.yaml` | Развертывание PostgreSQL: порт 5432, подключение PVC, переменные окружения из ConfigMap и Secret |
+| `k8s/06-postgres-service.yaml` | ClusterIP сервис для внутреннего доступа бэкенда к PostgreSQL (порт 5432) |
+| `k8s/07-backend-deployment.yaml` | Развертывание бэкенда: 2 реплики FastAPI, порт 8000, переменная DATABASE_URL |
+| `k8s/08-backend-service.yaml` | ClusterIP сервис для доступа фронтенда к бэкенду (порт 8000) |
+| `k8s/09-frontend-deployment.yaml` | Развертывание фронтенда: Streamlit, порт 8501, переменная API_URL |
+| `k8s/10-frontend-service.yaml` | NodePort сервис для внешнего доступа пользователей к приложению (порт 30001) |
 
 # Запуск
 
@@ -1085,6 +881,10 @@ plotly==5.24.1
 Применяем манифесты Kubernets:
 
 <img width="849" height="432" alt="Снимок экрана 2026-03-31 095022" src="https://github.com/user-attachments/assets/9a2dad28-f396-4aa9-a443-c1aac970ed2e" />
+
+Проверим статусы подов:
+
+<img width="819" height="103" alt="image" src="https://github.com/user-attachments/assets/9b7bf188-c0b9-423c-a16b-93df29018010" />
 
 Запускаем приложение:
 
