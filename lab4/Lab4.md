@@ -108,44 +108,15 @@ graph TD
 Сборка Docker образа бэкенда (Python 3.11, установка зависимостей, запуск uvicorn)
 
 ```
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 WORKDIR /app
-
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
-
-RUN mkdir -p /app/uploads
-
-EXPOSE 8000
+COPY main.py .
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
-```
-
-## backend/database.py
-
-Подключение к PostgreSQL, создание сессий SQLAlchemy, настройка движка БД
-
-```
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-import os
-
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:password@postgres:5432/documentdb")
-
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 ```
 
 ## backend/main.py
@@ -153,371 +124,254 @@ def get_db():
 Основной файл приложения FastAPI: реализация всех CRUD операций, загрузка/скачивание файлов, история версий, статистика
 
 ```
-from fastapi import FastAPI, Depends, HTTPException, Query, UploadFile, File, Form
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
-from sqlalchemy import func, or_, desc
-from typing import List, Optional
 import os
-import io
-from datetime import datetime, timedelta
-import json
+import uuid
+from datetime import datetime
+from typing import List, Optional
  
-from database import engine, get_db, Base
-from models import Document, DocumentType, DocumentStatus, DocumentHistory
-from schemas import (
-    DocumentCreate, DocumentUpdate, DocumentResponse, 
-    DocumentStats, DocumentHistoryResponse
-)
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, status
+from fastapi.responses import FileResponse
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime, ForeignKey, Text, func
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, Session, relationship
+from pydantic import BaseModel
  
-# Create tables
-Base.metadata.create_all(bind=engine)
+app = FastAPI(title="Document Archive API")
  
-app = FastAPI(title="Архив документов API", version="2.0.0")
+# ========================= DATABASE CONFIG =========================
+POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "password123")
+POSTGRES_HOST = "postgres"
+POSTGRES_DB = os.getenv("POSTGRES_DB", "documents_db")
  
-# CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+DATABASE_URL = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:5432/{POSTGRES_DB}"
  
-# Create upload directory
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+ 
 UPLOAD_DIR = "/app/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
  
-# Вспомогательная функция для записи истории
-def add_history(db: Session, doc_id: int, action: str, old_value: str, new_value: str, changed_by: str = "system"):
-    history = DocumentHistory(
-        document_id=doc_id,
-        action=action,
-        old_value=old_value,
-        new_value=new_value,
-        changed_by=changed_by
-    )
-    db.add(history)
-    db.commit()
- 
-@app.post("/documents/", response_model=DocumentResponse)
-async def create_document(
-    title: str = Form(...),
-    filename: str = Form(...),
-    document_type: DocumentType = Form(DocumentType.OTHER),
-    status: DocumentStatus = Form(DocumentStatus.DRAFT),
-    description: str = Form(None),
-    tags: str = Form(None),
-    is_favorite: bool = Form(False),
-    file: UploadFile = File(None),
-    db: Session = Depends(get_db)
-):
-    # Сохраняем файл
-    file_content = None
-    file_size = 0
-    mime_type = None
-    
-    if file:
-        file_content = await file.read()
-        file_size = len(file_content)
-        mime_type = file.content_type
-    
-    db_document = Document(
-        filename=filename,
-        title=title,
-        document_type=document_type,
-        status=status,
-        description=description,
-        tags=tags,
-        is_favorite=is_favorite,
-        file_size=file_size,
-        file_content=file_content,
-        mime_type=mime_type
-    )
-    db.add(db_document)
-    db.commit()
-    db.refresh(db_document)
-    
-    # Записываем историю
-    add_history(db, db_document.id, "create", "", f"Создан документ: {title}", "system")
-    
-    return db_document
- 
-@app.get("/documents/", response_model=List[DocumentResponse])
-def read_documents(
-    skip: int = 0, 
-    limit: int = 100,
-    search: Optional[str] = None,
-    doc_type: Optional[DocumentType] = None,
-    status: Optional[DocumentStatus] = None,
-    favorite_only: bool = False,
-    db: Session = Depends(get_db)
-):
-    query = db.query(Document).filter(Document.status != DocumentStatus.DELETED)
-    
-    if search:
-        query = query.filter(
-            or_(
-                Document.title.ilike(f"%{search}%"),
-                Document.filename.ilike(f"%{search}%"),
-                Document.description.ilike(f"%{search}%"),
-                Document.tags.ilike(f"%{search}%")
-            )
-        )
-    if doc_type:
-        query = query.filter(Document.document_type == doc_type)
-    if status:
-        query = query.filter(Document.status == status)
-    if favorite_only:
-        query = query.filter(Document.is_favorite == True)
-    
-    documents = query.order_by(desc(Document.created_at)).offset(skip).limit(limit).all()
-    return documents
- 
-@app.get("/documents/{document_id}", response_model=DocumentResponse)
-def read_document(document_id: int, db: Session = Depends(get_db)):
-    db_document = db.query(Document).filter(Document.id == document_id).first()
-    if db_document is None or db_document.status == DocumentStatus.DELETED:
-        raise HTTPException(status_code=404, detail="Документ не найден")
-    return db_document
- 
-@app.get("/documents/{document_id}/download")
-def download_document(document_id: int, db: Session = Depends(get_db)):
-    db_document = db.query(Document).filter(Document.id == document_id).first()
-    if db_document is None or not db_document.file_content:
-        raise HTTPException(status_code=404, detail="Файл не найден")
-    
-    return StreamingResponse(
-        io.BytesIO(db_document.file_content),
-        media_type=db_document.mime_type or "application/octet-stream",
-        headers={"Content-Disposition": f"attachment; filename={db_document.filename}"}
-    )
- 
-@app.get("/documents/{document_id}/preview")
-def preview_document(document_id: int, db: Session = Depends(get_db)):
-    db_document = db.query(Document).filter(Document.id == document_id).first()
-    if db_document is None or not db_document.file_content:
-        raise HTTPException(status_code=404, detail="Файл не найден")
-    
-    return StreamingResponse(
-        io.BytesIO(db_document.file_content),
-        media_type=db_document.mime_type or "application/octet-stream"
-    )
- 
-@app.put("/documents/{document_id}", response_model=DocumentResponse)
-def update_document(
-    document_id: int, 
-    title: str = Form(None),
-    document_type: DocumentType = Form(None),
-    status: DocumentStatus = Form(None),
-    description: str = Form(None),
-    tags: str = Form(None),
-    is_favorite: bool = Form(None),
-    file: UploadFile = File(None),
-    db: Session = Depends(get_db)
-):
-    db_document = db.query(Document).filter(Document.id == document_id).first()
-    if db_document is None:
-        raise HTTPException(status_code=404, detail="Документ не найден")
-    
-    # Сохраняем старые значения для истории
-    changes = []
-    
-    if title and title != db_document.title:
-        changes.append(("title", db_document.title, title))
-        db_document.title = title
-    
-    if document_type and document_type != db_document.document_type:
-        changes.append(("document_type", db_document.document_type.value, document_type.value))
-        db_document.document_type = document_type
-    
-    if status and status != db_document.status:
-        changes.append(("status", db_document.status.value, status.value))
-        db_document.status = status
-    
-    if description is not None and description != db_document.description:
-        changes.append(("description", db_document.description or "", description or ""))
-        db_document.description = description
-    
-    if tags is not None and tags != db_document.tags:
-        changes.append(("tags", db_document.tags or "", tags or ""))
-        db_document.tags = tags
-    
-    if is_favorite is not None and is_favorite != db_document.is_favorite:
-        changes.append(("is_favorite", str(db_document.is_favorite), str(is_favorite)))
-        db_document.is_favorite = is_favorite
-    
-    if file:
-        file_content = file.file.read()
-        changes.append(("file", f"{db_document.filename} ({db_document.file_size} bytes)", f"{file.filename} ({len(file_content)} bytes)"))
-        db_document.file_content = file_content
-        db_document.file_size = len(file_content)
-        db_document.filename = file.filename
-        db_document.mime_type = file.content_type
-    
-    if changes:
-        db_document.version += 1
-        db_document.updated_at = datetime.now()
-        db.commit()
-        db.refresh(db_document)
-        
-        # Записываем историю изменений
-        for field, old, new in changes:
-            add_history(db, document_id, "update", old, new, "system")
-    
-    return db_document
- 
-@app.delete("/documents/{document_id}")
-def delete_document(document_id: int, db: Session = Depends(get_db)):
-    db_document = db.query(Document).filter(Document.id == document_id).first()
-    if db_document is None:
-        raise HTTPException(status_code=404, detail="Документ не найден")
-    
-    old_status = db_document.status.value
-    db_document.status = DocumentStatus.DELETED
-    db.commit()
-    
-    add_history(db, document_id, "delete", old_status, "Удален", "system")
-    
-    return {"message": "Документ успешно удален"}
- 
-@app.get("/documents/{document_id}/history", response_model=List[DocumentHistoryResponse])
-def get_document_history(document_id: int, db: Session = Depends(get_db)):
-    history = db.query(DocumentHistory).filter(
-        DocumentHistory.document_id == document_id
-    ).order_by(desc(DocumentHistory.changed_at)).all()
-    return history
- 
-@app.get("/stats/", response_model=DocumentStats)
-def get_statistics(db: Session = Depends(get_db)):
-    total = db.query(Document).filter(Document.status != DocumentStatus.DELETED).count()
-    
-    by_type = {}
-    for doc_type in DocumentType:
-        count = db.query(Document).filter(
-            Document.document_type == doc_type, 
-            Document.status != DocumentStatus.DELETED
-        ).count()
-        by_type[doc_type.value] = count
-    
-    by_status = {}
-    for status in DocumentStatus:
-        if status != DocumentStatus.DELETED:
-            count = db.query(Document).filter(Document.status == status).count()
-            by_status[status.value] = count
-    
-    total_size = db.query(func.sum(Document.file_size)).filter(
-        Document.status != DocumentStatus.DELETED
-    ).scalar() or 0
-    
-    avg_version = db.query(func.avg(Document.version)).filter(
-        Document.status != DocumentStatus.DELETED
-    ).scalar() or 0
-    
-    # Последние действия
-    recent_activity = db.query(DocumentHistory).order_by(
-        desc(DocumentHistory.changed_at)
-    ).limit(10).all()
-    
-    recent_activity_list = [
-        {
-            "action": h.action,
-            "document_id": h.document_id,
-            "changed_at": h.changed_at.isoformat(),
-            "changed_by": h.changed_by
-        }
-        for h in recent_activity
-    ]
-    
-    return DocumentStats(
-        total_documents=total,
-        by_type=by_type,
-        by_status=by_status,
-        total_size_mb=total_size / (1024 * 1024),
-        avg_version=round(avg_version, 2),
-        recent_activity=recent_activity_list
-    )
- 
-@app.get("/recent/", response_model=List[DocumentResponse])
-def get_recent_documents(days: int = 7, limit: int = 10, db: Session = Depends(get_db)):
-    cutoff_date = datetime.now() - timedelta(days=days)
-    documents = db.query(Document)\
-        .filter(
-            Document.created_at >= cutoff_date, 
-            Document.status != DocumentStatus.DELETED
-        )\
-        .order_by(desc(Document.created_at))\
-        .limit(limit)\
-        .all()
-    return documents
- 
-@app.get("/health")
-def health_check():
-    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
-```
-
-## backend/models.py
-
-Модели данных: Document (документы) и DocumentHistory (история изменений) с полями и связями
-
-```
-from sqlalchemy import Column, Integer, String, DateTime, Text, Enum, Boolean, ForeignKey, LargeBinary
-from sqlalchemy.sql import func
-from sqlalchemy.orm import relationship
-from database import Base
-import enum
- 
-class DocumentType(str, enum.Enum):
-    CONTRACT = "Договор"
-    INVOICE = "Счет"
-    REPORT = "Отчет"
-    POLICY = "Положение"
-    ACT = "Акт"
-    ORDER = "Приказ"
-    OTHER = "Прочее"
- 
-class DocumentStatus(str, enum.Enum):
-    DRAFT = "Черновик"
-    ACTIVE = "Действующий"
-    ARCHIVED = "В архиве"
-    DELETED = "Удален"
- 
+# ========================= MODELS =========================
 class Document(Base):
     __tablename__ = "documents"
     
     id = Column(Integer, primary_key=True, index=True)
-    filename = Column(String(255), nullable=False)
-    title = Column(String(255), nullable=False)
-    document_type = Column(Enum(DocumentType), default=DocumentType.OTHER)
-    status = Column(Enum(DocumentStatus), default=DocumentStatus.DRAFT)
-    version = Column(Integer, default=1)
-    file_size = Column(Integer, default=0)
-    file_path = Column(String(500))
-    file_content = Column(LargeBinary, nullable=True)  # Для хранения файлов в БД
-    mime_type = Column(String(100))
-    created_by = Column(String(100), default="system")
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    description = Column(Text)
-    tags = Column(String(500))
+    name = Column(String, index=True, nullable=False)
+    doc_type = Column(String, nullable=False)
+    tag = Column(String, nullable=False)
     is_favorite = Column(Boolean, default=False)
-    
-    # Связь с историей
-    history = relationship("DocumentHistory", back_populates="document", cascade="all, delete-orphan")
+    responsible = Column(String, default="Не указан")
+    file_path = Column(String, nullable=True)
+    original_filename = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
  
-class DocumentHistory(Base):
-    __tablename__ = "document_history"
+class ActionLog(Base):
+    __tablename__ = "action_logs"
     
     id = Column(Integer, primary_key=True, index=True)
-    document_id = Column(Integer, ForeignKey("documents.id"))
-    action = Column(String(50))  # create, update, status_change, version_upgrade
-    old_value = Column(Text)
-    new_value = Column(Text)
-    changed_by = Column(String(100))
-    changed_at = Column(DateTime(timezone=True), server_default=func.now())
+    timestamp = Column(DateTime, default=datetime.utcnow)
+    action = Column(String, nullable=False)
+    document_id = Column(Integer, ForeignKey("documents.id", ondelete="CASCADE"), nullable=True)
+    document_name = Column(String, nullable=False)
+    details = Column(Text, nullable=True)
+ 
+# Создаём таблицы
+Base.metadata.create_all(bind=engine)
+ 
+# ========================= DEPENDENCIES =========================
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+ 
+def log_action(db: Session, action: str, doc_id: Optional[int], doc_name: str, details: str = ""):
+    log = ActionLog(
+        action=action,
+        document_id=doc_id,
+        document_name=doc_name,
+        details=details
+    )
+    db.add(log)
+    db.commit()
+ 
+# ========================= SCHEMAS =========================
+class DocumentBase(BaseModel):
+    name: str
+    doc_type: str
+    tag: str
+    is_favorite: bool = False
+    responsible: str = "Не указан"
+ 
+class DocumentCreate(DocumentBase):
+    pass
+ 
+class DocumentRead(DocumentBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    file_path: Optional[str] = None
+    original_filename: Optional[str] = None
+ 
+    model_config = {"from_attributes": True}
+ 
+# ========================= API ENDPOINTS =========================
+@app.post("/documents/create", response_model=DocumentRead)
+def create_document(doc: DocumentCreate, db: Session = Depends(get_db)):
+    db_doc = Document(**doc.model_dump())
+    db.add(db_doc)
+    db.commit()
+    db.refresh(db_doc)
     
-    document = relationship("Document", back_populates="history")
+    log_action(db, "create", db_doc.id, db_doc.name, "Создан документ")
+    return db_doc
+ 
+@app.post("/documents/upload", response_model=DocumentRead)
+async def upload_document(
+    name: str = Form(...),
+    doc_type: str = Form(...),
+    tag: str = Form(...),
+    is_favorite: bool = Form(False),
+    responsible: str = Form("Не указан"),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    # Сохраняем файл
+    file_ext = file.filename.split(".")[-1] if "." in file.filename else "bin"
+    unique_name = f"{uuid.uuid4()}.{file_ext}"
+    file_path = os.path.join(UPLOAD_DIR, unique_name)
+    
+    with open(file_path, "wb") as f:
+        f.write(await file.read())
+    
+    # Создаём запись в БД
+    db_doc = Document(
+        name=name,
+        doc_type=doc_type,
+        tag=tag,
+        is_favorite=is_favorite,
+        responsible=responsible,
+        file_path=file_path,
+        original_filename=file.filename
+    )
+    db.add(db_doc)
+    db.commit()
+    db.refresh(db_doc)
+    
+    log_action(db, "upload", db_doc.id, db_doc.name, f"Загружен файл: {file.filename}")
+    return db_doc
+ 
+@app.get("/documents", response_model=List[DocumentRead])
+def get_all_documents(db: Session = Depends(get_db)):
+    return db.query(Document).all()
+ 
+@app.get("/documents/{doc_id}", response_model=DocumentRead)
+def get_document(doc_id: int, db: Session = Depends(get_db)):
+    doc = db.query(Document).filter(Document.id == doc_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Документ не найден")
+    return doc
+ 
+@app.put("/documents/{doc_id}", response_model=DocumentRead)
+def update_document(doc_id: int, doc: DocumentCreate, db: Session = Depends(get_db)):
+    db_doc = db.query(Document).filter(Document.id == doc_id).first()
+    if not db_doc:
+        raise HTTPException(status_code=404, detail="Документ не найден")
+    
+    for key, value in doc.model_dump().items():
+        setattr(db_doc, key, value)
+    
+    db.commit()
+    db.refresh(db_doc)
+    
+    log_action(db, "update", db_doc.id, db_doc.name, "Метаданные документа обновлены")
+    return db_doc
+ 
+@app.delete("/documents/{doc_id}")
+def delete_document(doc_id: int, db: Session = Depends(get_db)):
+    try:
+        doc = db.query(Document).filter(Document.id == doc_id).first()
+        if not doc:
+            raise HTTPException(status_code=404, detail="Документ не найден")
+        
+        doc_name = doc.name
+        
+        # Удаляем файл с диска, если он есть
+        if doc.file_path:
+            try:
+                if os.path.exists(doc.file_path):
+                    os.remove(doc.file_path)
+            except Exception as e:
+                print(f"Warning: Не удалось удалить файл {doc.file_path}: {e}")
+        
+        # Сначала удаляем связанные логи
+        db.query(ActionLog).filter(ActionLog.document_id == doc_id).delete()
+        
+        # Теперь удаляем документ
+        db.delete(doc)
+        db.commit()
+        
+        return {"message": f"Документ «{doc_name}» успешно удалён"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Error deleting document {doc_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Ошибка удаления: {str(e)}")
+ 
+@app.get("/documents/{doc_id}/download")
+def download_file(doc_id: int, db: Session = Depends(get_db)):
+    doc = db.query(Document).filter(Document.id == doc_id).first()
+    if not doc or not doc.file_path:
+        raise HTTPException(status_code=404, detail="Файл не найден")
+    
+    if not os.path.exists(doc.file_path):
+        raise HTTPException(status_code=404, detail="Файл отсутствует на сервере")
+    
+    log_action(db, "download", doc_id, doc.name, f"Скачан файл: {doc.original_filename}")
+    
+    return FileResponse(
+        path=doc.file_path,
+        filename=doc.original_filename or "document",
+        media_type="application/octet-stream"
+    )
+ 
+@app.get("/stats")
+def get_stats(db: Session = Depends(get_db)):
+    total = db.query(Document).count()
+    favorites = db.query(Document).filter(Document.is_favorite == True).count()
+    
+    by_type = {}
+    for row in db.query(Document.doc_type, func.count(Document.id)).group_by(Document.doc_type).all():
+        by_type[row[0]] = row[1]
+    
+    return {
+        "total_documents": total,
+        "favorites": favorites,
+        "by_type": by_type
+    }
+ 
+@app.get("/logs")
+def get_logs(db: Session = Depends(get_db)):
+    logs = db.query(ActionLog).order_by(ActionLog.timestamp.desc()).all()
+    return [
+        {
+            "timestamp": log.timestamp.isoformat(),
+            "action": log.action,
+            "document_name": log.document_name,
+            "details": log.details or ""
+        }
+        for log in logs
+    ]
+ 
+@app.get("/")
+def root():
+    return {"message": "Document Archive API is running 🚀"}
 ```
 
 ## backend/requirements.txt
@@ -525,80 +379,12 @@ class DocumentHistory(Base):
 Список Python зависимостей: fastapi, uvicorn, sqlalchemy, psycopg2-binary, pydantic, python-multipart
 
 ```
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-sqlalchemy==2.0.23
-psycopg2-binary==2.9.9
-pydantic==2.5.0
-python-multipart==0.0.6
-asyncpg==0.29.0
-alembic==1.12.1
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
-python-decouple==3.8
-celery==5.3.4
-redis==5.0.1
-```
-
-## backend/schemas.py
-
-Cхемы для валидации данных при создании, обновлении и возврате документов
-
-```
-from pydantic import BaseModel
-from datetime import datetime
-from typing import Optional, List
-from models import DocumentType, DocumentStatus
- 
-class DocumentBase(BaseModel):
-    filename: str
-    title: str
-    document_type: DocumentType = DocumentType.OTHER
-    status: DocumentStatus = DocumentStatus.DRAFT
-    description: Optional[str] = None
-    tags: Optional[str] = None
-    is_favorite: bool = False
- 
-class DocumentCreate(DocumentBase):
-    created_by: str = "system"
-    file_size: int = 0
-    file_path: Optional[str] = None
- 
-class DocumentUpdate(BaseModel):
-    title: Optional[str] = None
-    document_type: Optional[DocumentType] = None
-    status: Optional[DocumentStatus] = None
-    description: Optional[str] = None
-    tags: Optional[str] = None
-    is_favorite: Optional[bool] = None
- 
-class DocumentResponse(DocumentBase):
-    id: int
-    version: int
-    created_by: str
-    created_at: datetime
-    updated_at: Optional[datetime]
-    file_size: int
-    mime_type: Optional[str]
-    
-    class Config:
-        from_attributes = True
- 
-class DocumentHistoryResponse(BaseModel):
-    id: int
-    action: str
-    old_value: Optional[str]
-    new_value: Optional[str]
-    changed_by: str
-    changed_at: datetime
- 
-class DocumentStats(BaseModel):
-    total_documents: int
-    by_type: dict
-    by_status: dict
-    total_size_mb: float
-    avg_version: float
-    recent_activity: List[dict]
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+sqlalchemy==2.0.36
+psycopg2-binary==2.9.10
+pydantic==2.9.2
+python-multipart==0.0.9
 ```
 
 ## frontend/Dockerfile
@@ -606,16 +392,13 @@ class DocumentStats(BaseModel):
 Сборка Docker образа фронтенда (Python 3.11, установка зависимостей, запуск streamlit)
 
 ```
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 WORKDIR /app
-
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
-
-EXPOSE 8501
+COPY app.py .
 
 CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
 ```
@@ -1259,12 +1042,10 @@ st.markdown("""
 Список Python зависимостей: streamlit, requests, pandas, plotly
 
 ```
-streamlit==1.28.1
-requests==2.31.0
-pandas==2.1.3
-plotly==5.18.0
-python-dateutil==2.8.2
-pillow==10.1.0
+streamlit==1.39.0
+requests==2.32.3
+pandas==2.2.3
+plotly==5.24.1
 ```
 
 ## Манифесты Kubernets
