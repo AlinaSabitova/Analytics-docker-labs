@@ -1106,25 +1106,21 @@ plotly==5.24.1
 
 Тут же документ можно удалить, если он больше не актуален.
 
-Второй раздел - создание документов. Доступно для варианта - с прикреплением файла и без:
+Второй раздел - создание документов:
 
-<img width="1206" height="646" alt="image" src="https://github.com/user-attachments/assets/9b93f9a9-cfa7-4ee7-bdda-f64dca5b4263" />
+<img width="1204" height="685" alt="image" src="https://github.com/user-attachments/assets/94e63505-8a49-4352-816d-5cf171451b3d" />
 
-В разделе "Создать документ" необходимо заполнить все поля и нажать на кнопку "Создать документ"
-
-В разделе "Загрузить файл" можно дополнительно прикрепить файл, который будет приложением:
-
-<img width="922" height="658" alt="image" src="https://github.com/user-attachments/assets/ff08bec6-c241-40fb-adc6-45dde4c8d893" />
+Необходимо заполнить все поля и также можно прикрепить файл, который служит приложением к документу.
 
 В разделе "Статистика" можно посмотреть дашборд:
 
-<img width="1203" height="690" alt="image" src="https://github.com/user-attachments/assets/09dd38d8-78df-4012-bc65-8705e6d7d887" />
+<img width="957" height="532" alt="image" src="https://github.com/user-attachments/assets/37dade76-cf56-4c3f-be82-b2553197c4b1" />
 
 <img width="959" height="443" alt="image" src="https://github.com/user-attachments/assets/e6978a0c-4227-4583-bc4d-b908e3e6ceb7" />
 
 <img width="926" height="406" alt="image" src="https://github.com/user-attachments/assets/67d5af16-2d85-402d-a7ae-ad0165050222" />
 
-<img width="924" height="428" alt="image" src="https://github.com/user-attachments/assets/63d2caf1-42f9-48eb-a980-70ed5602a8e0" />
+<img width="953" height="452" alt="image" src="https://github.com/user-attachments/assets/3b332099-aa9a-4ce0-a28d-dbc1b233171c" />
 
 В разделе журнал действий можно просмотреть историю взаимодействия с файлами и при необходимости выгрузить в csv файл:
 
