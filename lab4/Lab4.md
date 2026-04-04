@@ -20,10 +20,11 @@
 | **Контейнеризация** | Docker | |
 | **Оркестрация** | Minikube (Driver: Docker), Kubernetes | |
 | **База данных** | PostgreSQL | 15-alpine |
-| **Язык программирования** | Python | 3.11 |
-| **Backend** | FastAPI, Uvicorn | 0.104.1 |
-| **Frontend** | Streamlit | 1.28.1 |
+| **Язык программирования** | Python | 3.12 |
+| **Backend** | FastAPI, Uvicorn | |
+| **Frontend** | Streamlit | 1.42.0 |
 | **Библиотеки** | SQLAlchemy, psycopg2-binary, Pydantic, requests, pandas, plotly | |
+| **Постоянное хранилище** | PVC (PersistentVolumeClaim) | 2Gi |
 
 # Архитектура решения
 
