@@ -18,7 +18,7 @@
 | **Контейнеризация** | Docker | |
 | **Оркестрация** | Minikube (Driver: Docker), Kubernetes | |
 | **База данных** | PostgreSQL | 15-alpine |
-| **Язык программирования** | Python | 3.12 |
+| **Язык программирования** | Python | 3.12-slim |
 | **Backend** | FastAPI, Uvicorn | |
 | **Frontend** | Streamlit | 1.42.0 |
 | **Библиотеки** | SQLAlchemy, psycopg2-binary, Pydantic, requests, pandas, plotly | |
