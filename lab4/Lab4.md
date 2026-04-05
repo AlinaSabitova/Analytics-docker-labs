@@ -92,7 +92,7 @@ graph TD
 
 # вариант 2
 
-````mermaid
+```mermaid
 graph TD
     classDef user fill:#ffebee,stroke:#c62828,stroke-width:2px
     classDef frontend fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
