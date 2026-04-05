@@ -90,6 +90,69 @@ graph TD
     class User user;
 ```
 
+# вариант 2
+
+````mermaid
+graph TD
+    classDef user fill:#ffebee,stroke:#c62828,stroke-width:2px
+    classDef frontend fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    classDef backend fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
+    classDef db fill:#e1f5fe,stroke:#0277bd,stroke-width:2px
+    classDef storage fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px
+
+    User(("👤 Пользователь")) -->|"🌐 Browser"| FrontendSVC
+
+    subgraph K8s ["☸ Kubernetes Cluster (Minikube)"]
+        
+        subgraph FE ["Frontend Layer"]
+            FrontendSVC["frontend-service\n(LoadBalancer)"]
+            FrontendPod["Frontend Pod\nStreamlit 1.42"]
+        end
+
+        subgraph BE ["Backend Layer"]
+            BackendSVC["backend-service\n(ClusterIP:8000)"]
+            BackendPod["Backend Pod\nFastAPI + Uvicorn"]
+        end
+
+        subgraph DB ["Database Layer"]
+            PostgresSVC["postgres-service\n(ClusterIP:5432)"]
+            PostgresPod["PostgreSQL Pod\n15-alpine"]
+        end
+
+        subgraph Storage ["Persistent Storage"]
+            PostgresPVC["postgres-pvc\n(2Gi)"]
+            UploadsPVC["uploads-pvc\n(2Gi)"]
+        end
+
+        subgraph Config ["Configuration"]
+            Secret["postgres-secret\n(пароль)"]
+            ConfigMap["postgres-configmap\n(настройки)"]
+        end
+    end
+
+    %% Связи
+    FrontendSVC --- FrontendPod
+    FrontendPod -->|"HTTP /api"| BackendSVC
+    
+    BackendSVC --- BackendPod
+    BackendPod -->|"SQLAlchemy"| PostgresSVC
+    BackendPod -->|"сохраняет файлы"| UploadsPVC
+    
+    PostgresSVC --- PostgresPod
+    PostgresPod --- PostgresPVC
+    
+    Secret -.-> PostgresPod
+    Secret -.-> BackendPod
+    ConfigMap -.-> PostgresPod
+
+    %% Стили
+    class User user
+    class FrontendSVC,FrontendPod frontend
+    class BackendSVC,BackendPod backend
+    class PostgresSVC,PostgresPod db
+    class PostgresPVC,UploadsPVC storage
+```
+
 # Таблица пояснения компонентов архитектуры
 
 | Блок | Компонент | Краткое пояснение |
