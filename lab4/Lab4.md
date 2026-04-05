@@ -93,7 +93,7 @@ graph TD
 # вариант 2
 
 ```mermaid
-graph TD
+graph LR
     classDef user fill:#ffebee,stroke:#c62828,stroke-width:2px
     classDef frontend fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
     classDef backend fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
@@ -101,50 +101,50 @@ graph TD
     classDef storage fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px
     classDef config fill:#fce4ec,stroke:#c2185b,stroke-width:2px
 
-    User(("👤 Пользователь")) -->|"🌐 Browser"| FrontendSVC
+    User(("👤 Пользователь"))
 
     subgraph K8s ["☸ Kubernetes Cluster (Minikube)"]
         
+        subgraph CF ["Configuration"]
+            Secret["postgres-secret"]
+            ConfigMap["postgres-configmap"]
+        end
+
         subgraph FE ["Frontend Layer"]
             FrontendSVC{"frontend-service\n(LoadBalancer:80)"}
-            FrontendPod["Frontend Pod\nStreamlit 1.42"]
+            FrontendPod["Frontend Pod\nStreamlit"]
         end
 
         subgraph BE ["Backend Layer"]
             BackendSVC{"backend-service\n(ClusterIP:8000)"}
-            BackendPod["Backend Pod\nFastAPI + Uvicorn"]
+            BackendPod["Backend Pod\nFastAPI"]
         end
 
         subgraph DB ["Database Layer"]
             PostgresSVC{"postgres-service\n(ClusterIP:5432)"}
-            PostgresPod["PostgreSQL Pod\n15-alpine"]
+            PostgresPod["PostgreSQL Pod"]
             PostgresPVC["postgres-pvc\n(2Gi)"]
         end
 
-        subgraph ST ["Storage Layer"]
+        subgraph ST ["Storage"]
             UploadsPVC["uploads-pvc\n(2Gi)"]
-        end
-
-        subgraph CF ["Configuration Layer"]
-            Secret["postgres-secret\n(пароль)"]
-            ConfigMap["postgres-configmap\n(настройки)"]
         end
     end
 
-    %% Связи
-    FrontendSVC --- FrontendPod
-    FrontendPod -->|"HTTP /api"| BackendSVC
+    %% Основной поток данных (слева направо)
+    User -->|"1. HTTP"| FrontendSVC
+    FrontendSVC --> FrontendPod
+    FrontendPod -->|"2. REST API"| BackendSVC
+    BackendSVC --> BackendPod
+    BackendPod -->|"3. SQL"| PostgresSVC
+    BackendPod -->|"4. save files"| UploadsPVC
+    PostgresSVC --> PostgresPod
+    PostgresPod --> PostgresPVC
     
-    BackendSVC --- BackendPod
-    BackendPod -->|"SQLAlchemy"| PostgresSVC
-    BackendPod -->|"сохраняет файлы"| UploadsPVC
-    
-    PostgresSVC --- PostgresPod
-    PostgresPod --- PostgresPVC
-    
-    Secret -.-> PostgresPod
-    Secret -.-> BackendPod
-    ConfigMap -.-> PostgresPod
+    %% Конфигурация (пунктир)
+    Secret -.->|"пароль"| PostgresPod
+    Secret -.->|"пароль"| BackendPod
+    ConfigMap -.->|"настройки"| PostgresPod
 
     %% Стили
     class User user
