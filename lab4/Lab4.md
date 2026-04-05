@@ -98,7 +98,6 @@ graph LR
     classDef frontend fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
     classDef backend fill:#fff3e0,stroke:#ef6c00,stroke-width:2px
     classDef database fill:#e1f5fe,stroke:#0277bd,stroke-width:2px
-    classDef storage fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px
     classDef config fill:#fce4ec,stroke:#c2185b,stroke-width:2px
 
     User(("👤 Пользователь"))
@@ -117,31 +116,24 @@ graph LR
 
         subgraph BE ["Backend Layer"]
             BackendSVC{"backend-service\n(ClusterIP:8000)"}
-            BackendPod["Backend Pod\nFastAPI"]
+            BackendPod["Backend Pod\nFastAPI\n+ uploads-pvc(2Gi)"]
         end
 
         subgraph DB ["Database Layer"]
             PostgresSVC{"postgres-service\n(ClusterIP:5432)"}
-            PostgresPod["PostgreSQL Pod"]
-            PostgresPVC["postgres-pvc\n(2Gi)"]
-        end
-
-        subgraph ST ["Storage"]
-            UploadsPVC["uploads-pvc\n(2Gi)"]
+            PostgresPod["PostgreSQL Pod\n+ postgres-pvc(2Gi)"]
         end
     end
 
-    %% Основной поток данных (слева направо)
+    %% Основной поток данных
     User -->|"1. HTTP"| FrontendSVC
     FrontendSVC --> FrontendPod
     FrontendPod -->|"2. REST API"| BackendSVC
     BackendSVC --> BackendPod
     BackendPod -->|"3. SQL"| PostgresSVC
-    BackendPod -->|"4. save files"| UploadsPVC
     PostgresSVC --> PostgresPod
-    PostgresPod --> PostgresPVC
     
-    %% Конфигурация (пунктир)
+    %% Конфигурация
     Secret -.->|"пароль"| PostgresPod
     Secret -.->|"пароль"| BackendPod
     ConfigMap -.->|"настройки"| PostgresPod
@@ -150,8 +142,7 @@ graph LR
     class User user
     class FrontendSVC,FrontendPod frontend
     class BackendSVC,BackendPod backend
-    class PostgresSVC,PostgresPod,PostgresPVC database
-    class UploadsPVC storage
+    class PostgresSVC,PostgresPod database
     class Secret,ConfigMap config
 ```
 
