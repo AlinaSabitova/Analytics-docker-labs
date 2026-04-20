@@ -105,7 +105,6 @@ graph TD
         subgraph Data ["Слой данных"]
             PG1("Postgres\n(Основные данные)"):::db
             PG2("Postgres 2\n(Данные пользователей)"):::db
-            MYSQL("MySQL"):::db
         end
     end
 
@@ -129,9 +128,11 @@ graph TD
 
     %% Связи
     User -->|HTTP Requests| APP
-    APP -->|Запись / Чтение| PG1
+    APP <-->|Чтение / Запись| PG1
     APP -->|Проверка авторизации| USERS
-    USERS -->|Хранение учетных данных| PG2
+    USERS <-->|Чтение / Запись| PG2
+    
+    APP <-->|Обмен данными| Gostech_Server
     
     APP -->|Кеширование сессий| REDIS
     USERS -->|Кеширование токенов| REDIS
@@ -140,7 +141,7 @@ graph TD
 
     %% Стилизация
     class Gostech_Server server;
-    class PG1,PG2,MYSQL db;
+    class PG1,PG2 db;
     class REDIS cache;
     class OS search;
 ```
