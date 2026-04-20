@@ -98,6 +98,7 @@ graph TD
     classDef db fill:#e1f5fe,stroke:#0277bd,stroke-width:2px;
     classDef app fill:#fff3e0,stroke:#ef6c00,stroke-width:2px;
     classDef search fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef cache fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
     classDef user fill:#ffebee,stroke:#c62828,stroke-width:2px;
     classDef server fill:#eceff1,stroke:#546e7a,stroke-width:2px,stroke-dasharray: 5 5;
 
@@ -112,12 +113,15 @@ graph TD
     subgraph App_Infra ["Инфраструктура приложений"]
         subgraph Core ["Основные сервисы"]
             APP("Monolith (egisu)\nОсновное приложение"):::app
-            USERS("users-service\n(Сервис пользователей)"):::app
+            USERS("users-service\n(Авторизация)"):::app
+        end
+
+        subgraph Cache ["Слой кеширования"]
+            REDIS("Redis\n(Кеш сессий / данных)"):::cache
         end
 
         subgraph Search ["Поиск и Логи"]
             OS("OpenSearch"):::search
-            KIB("Kibana\n(Визуализация логов)"):::search
             DAHBE("DAHBE\n(Обработчик событий)"):::search
         end
 
@@ -132,11 +136,14 @@ graph TD
     %% Связи
     User -->|HTTP Requests| APP
     APP -->|Запись / Чтение| PG1
-    APP -->|Запросы пользователей| USERS
-    USERS -->|Хранение профилей| PG2
+    APP -->|Проверка авторизации| USERS
+    USERS -->|Хранение учетных данных| PG2
+    
+    APP -->|Кеширование сессий| REDIS
+    USERS -->|Кеширование токенов| REDIS
+    REALS -->|Кеширование промежуточных данных| REDIS
     
     APP -->|Логирование| OS
-    OS -->|Визуализация| KIB
     DAHBE -->|Обработка событий| MYSQL
     DAHBE -->|Индексация| OS
     
@@ -147,7 +154,8 @@ graph TD
     class Gostech_Server server;
     class REALS logic;
     class PG1,PG2,MYSQL db;
-    class OS,KIB,DAHBE search;
+    class REDIS cache;
+    class OS,DAHBE search;
 ```
 
 
