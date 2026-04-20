@@ -98,21 +98,21 @@ graph TD
     classDef db fill:#e1f5fe,stroke:#0277bd,stroke-width:2px;
     classDef app fill:#fff3e0,stroke:#ef6c00,stroke-width:2px;
     classDef search fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
-    classDef monitor fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
     classDef user fill:#ffebee,stroke:#c62828,stroke-width:2px;
-    classDef queue fill:#fff8e1,stroke:#f57f17,stroke-width:2px;
+    classDef server fill:#eceff1,stroke:#546e7a,stroke-width:2px,stroke-dasharray: 5 5;
 
-    subgraph Cluster ["K8s Cluster / Инфраструктура"]
-        
-        subgraph Core ["Основные сервисы"]
-            APP("Monolith (egisu)\nОсновное приложение"):::app
-            USERS("users-service\n(Сервис пользователей)"):::app
-        end
-
+    subgraph Gostech_Server ["Сервер Gostech"]
         subgraph Data ["Слой данных"]
             PG1("Postgres\n(Основные данные)"):::db
             PG2("Postgres 2\n(Данные пользователей)"):::db
             MYSQL("MySQL\n(Данные DAHBE)"):::db
+        end
+    end
+
+    subgraph App_Infra ["Инфраструктура приложений"]
+        subgraph Core ["Основные сервисы"]
+            APP("Monolith (egisu)\nОсновное приложение"):::app
+            USERS("users-service\n(Сервис пользователей)"):::app
         end
 
         subgraph Search ["Поиск и Логи"]
@@ -123,11 +123,6 @@ graph TD
 
         subgraph Logic ["ЛОГИКА\n(Бизнес-слой)"]
             REALS("reals\n(Процессинг данных)"):::logic
-        end
-
-        subgraph Monitoring ["Мониторинг"]
-            PROM("Prometheus"):::monitor
-            GRAF("Grafana"):::monitor
         end
     end
 
@@ -140,7 +135,7 @@ graph TD
     APP -->|Запросы пользователей| USERS
     USERS -->|Хранение профилей| PG2
     
-    APP -->|Логирование и метрики| OS
+    APP -->|Логирование| OS
     OS -->|Визуализация| KIB
     DAHBE -->|Обработка событий| MYSQL
     DAHBE -->|Индексация| OS
@@ -148,17 +143,11 @@ graph TD
     APP -->|Асинхронные события| REALS
     REALS -->|Аналитика / Статистика| DAHBE
 
-    %% Мониторинг (сбор метрик)
-    PROM -->|Сбор метрик| APP
-    PROM -->|Сбор метрик| USERS
-    PROM -->|Сбор метрик| OS
-    GRAF -->|Дашборды| PROM
-
     %% Стилизация
+    class Gostech_Server server;
     class REALS logic;
     class PG1,PG2,MYSQL db;
     class OS,KIB,DAHBE search;
-    class PROM,GRAF monitor;
 ```
 
 
