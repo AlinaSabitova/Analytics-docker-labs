@@ -94,7 +94,6 @@ graph TD
 ```mermaid
 graph TD
     %% Определение классов стилей
-    classDef logic fill:#f9f9f9,stroke:#333,stroke-width:1px,stroke-dasharray: 5 5;
     classDef db fill:#e1f5fe,stroke:#0277bd,stroke-width:2px;
     classDef app fill:#fff3e0,stroke:#ef6c00,stroke-width:2px;
     classDef search fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
@@ -106,13 +105,13 @@ graph TD
         subgraph Data ["Слой данных"]
             PG1("Postgres\n(Основные данные)"):::db
             PG2("Postgres 2\n(Данные пользователей)"):::db
-            MYSQL("MySQL\n(Данные DAHBE)"):::db
+            MYSQL("MySQL"):::db
         end
     end
 
     subgraph App_Infra ["Инфраструктура приложений"]
         subgraph Core ["Основные сервисы"]
-            APP("Monolith (egisu)\nОсновное приложение"):::app
+            APP("Микросервис (egisu)\nОсновное приложение"):::app
             USERS("users-service\n(Авторизация)"):::app
         end
 
@@ -122,11 +121,6 @@ graph TD
 
         subgraph Search ["Поиск и Логи"]
             OS("OpenSearch"):::search
-            DAHBE("DAHBE\n(Обработчик событий)"):::search
-        end
-
-        subgraph Logic ["ЛОГИКА\n(Бизнес-слой)"]
-            REALS("reals\n(Процессинг данных)"):::logic
         end
     end
 
@@ -141,21 +135,14 @@ graph TD
     
     APP -->|Кеширование сессий| REDIS
     USERS -->|Кеширование токенов| REDIS
-    REALS -->|Кеширование промежуточных данных| REDIS
     
     APP -->|Логирование| OS
-    DAHBE -->|Обработка событий| MYSQL
-    DAHBE -->|Индексация| OS
-    
-    APP -->|Асинхронные события| REALS
-    REALS -->|Аналитика / Статистика| DAHBE
 
     %% Стилизация
     class Gostech_Server server;
-    class REALS logic;
     class PG1,PG2,MYSQL db;
     class REDIS cache;
-    class OS,DAHBE search;
+    class OS search;
 ```
 
 
